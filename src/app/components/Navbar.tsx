@@ -19,22 +19,12 @@ export function Navbar() {
   // Check if customer has active order
   const hasActiveOrder = orders.some(
     (order) =>
-      order.customerName === username &&
+      order.customer_name === username &&
       order.status !== "completed"
   );
 
   const handleLogout = () => {
-    // Check for active order
-    if (hasActiveOrder) {
-      // Show special warning for active orders
-      if (window.confirm("Pesanan kamu masih berjalan, yakin ingin keluar?")) {
-        logout();
-        navigate("/login-customer");
-      }
-    } else {
-      // Show regular logout confirmation
-      setShowLogoutConfirm(true);
-    }
+    setShowLogoutConfirm(true);
   };
 
   const confirmLogout = () => {
@@ -59,7 +49,7 @@ export function Navbar() {
                 location.pathname === "/home" ? "text-[#FF6A00]" : "text-gray-700 hover:text-[#FF6A00]"
               }`}
             >
-              Home
+              Beranda
             </Link>
             <Link
               to="/home/cart"
@@ -67,7 +57,7 @@ export function Navbar() {
                 location.pathname === "/home/cart" ? "text-[#FF6A00]" : "text-gray-700 hover:text-[#FF6A00]"
               }`}
             >
-              Order
+              Pesanan
             </Link>
             <Link
               to="/home/history"
@@ -75,7 +65,7 @@ export function Navbar() {
                 location.pathname === "/home/history" ? "text-[#FF6A00]" : "text-gray-700 hover:text-[#FF6A00]"
               }`}
             >
-              History
+              Riwayat
             </Link>
           </div>
 
@@ -139,7 +129,7 @@ export function Navbar() {
               location.pathname === "/home" ? "text-[#FF6A00]" : "text-gray-600"
             }`}
           >
-            <div className="text-xs font-medium">Home</div>
+            <div className="text-xs font-medium">Beranda</div>
           </Link>
           <Link
             to="/home/cart"
@@ -153,7 +143,7 @@ export function Navbar() {
                 {totalItems}
               </span>
             )}
-            <div className="text-xs font-medium">Order</div>
+            <div className="text-xs font-medium">Pesanan</div>
           </Link>
           <Link
             to="/home/history"
@@ -161,7 +151,7 @@ export function Navbar() {
               location.pathname === "/home/history" ? "text-[#FF6A00]" : "text-gray-600"
             }`}
           >
-            <div className="text-xs font-medium">History</div>
+            <div className="text-xs font-medium">Riwayat</div>
           </Link>
         </div>
       </div>

@@ -16,7 +16,7 @@ import {
   generateUniquePaymentCode,
 } from "../../utils/financeCalculations";
 import { toast } from "sonner";
-import type { TablesInsert } from "../../lib/database.types";
+import type { TablesInsert } from "../../../lib/database.types";
 
 const VILLAGES: Village[] = [
   "Desa Sekuningan Baru",

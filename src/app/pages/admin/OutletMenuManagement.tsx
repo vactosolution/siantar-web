@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, useNavigate } from "react-router";
-import { ArrowLeft, Plus, Edit2, Trash2, X, Upload, Image as ImageIcon, PackageX, Loader2 } from "lucide-react";
+import { ArrowLeft, Plus, Edit2, Trash2, X, Upload, Image as ImageIcon, PackageX, Loader2, Copy, Star } from "lucide-react";
 import { useData, ProductWithDetails, ProductVariant, ProductExtra } from "../../contexts/DataContext";
 import { formatCurrency } from "../../utils/financeCalculations";
 import { uploadFile } from "../../../lib/supabase";
@@ -31,6 +31,8 @@ export function OutletMenuManagement() {
     extras: [] as ProductExtra[],
     image_url: "" as string | null,
     is_available: true,
+    is_best_seller: false,
+    is_recommended: false,
   });
 
   // Variant and extra forms
@@ -67,6 +69,8 @@ export function OutletMenuManagement() {
       extras: [],
       image_url: null,
       is_available: true,
+      is_best_seller: false,
+      is_recommended: false,
     });
     setShowMenuModal(true);
   };
@@ -83,6 +87,8 @@ export function OutletMenuManagement() {
       extras: menu.extras || [],
       image_url: menu.image_url,
       is_available: menu.is_available,
+      is_best_seller: (menu as any).is_best_seller || false,
+      is_recommended: (menu as any).is_recommended || false,
     });
     setShowMenuModal(true);
   };
@@ -104,16 +110,20 @@ export function OutletMenuManagement() {
         category: menuForm.category,
         image_url: menuForm.image_url || null,
         is_available: menuForm.is_available,
+        is_best_seller: menuForm.is_best_seller,
+        is_recommended: menuForm.is_recommended,
       };
 
       const variantsData = menuForm.variants.map((v) => ({
         name: v.name,
         price_adjustment: v.price_adjustment,
+        product_id: editingMenu?.id || "",
       }));
 
       const extrasData = menuForm.extras.map((e) => ({
         name: e.name,
         price: e.price,
+        product_id: editingMenu?.id || "",
       }));
 
       if (editingMenu) {
@@ -217,6 +227,43 @@ export function OutletMenuManagement() {
       ...menuForm,
       extras: menuForm.extras.filter((e) => e.id !== extraId),
     });
+  };
+
+  const handleDuplicate = async (product: ProductWithDetails) => {
+    setSaving(true);
+    try {
+      const newMenu = {
+        outlet_id: outletId!,
+        name: `${product.name} (Copy)`,
+        price: product.price,
+        discount_price: product.discount_price,
+        description: product.description,
+        category: product.category,
+        image_url: product.image_url,
+        is_available: product.is_available,
+        is_best_seller: (product as any).is_best_seller || false,
+        is_recommended: (product as any).is_recommended || false,
+      };
+
+      const variantsData = (product.variants || []).map((v) => ({
+        name: v.name,
+        price_adjustment: v.price_adjustment,
+        product_id: "",
+      }));
+
+      const extrasData = (product.extras || []).map((e) => ({
+        name: e.name,
+        price: e.price,
+        product_id: "",
+      }));
+
+      await addProduct(newMenu, variantsData, extrasData);
+      toast.success("Menu berhasil diduplikat");
+    } catch (error: any) {
+      toast.error(error.message || "Gagal menduplikat menu");
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loadingProducts) {
@@ -338,6 +385,13 @@ export function OutletMenuManagement() {
                       }`}
                     >
                       {menu.is_available ? "Tersedia" : "Habis"}
+                    </button>
+                    <button
+                      onClick={() => handleDuplicate(menu)}
+                      className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
+                      title="Duplikat Menu"
+                    >
+                      <Copy className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => handleEditMenu(menu)}
@@ -563,6 +617,92 @@ export function OutletMenuManagement() {
                   <span
                     className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
                       menuForm.is_available ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Best Seller Toggle */}
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Star className="w-4 h-4 text-yellow-500" />
+                  <div>
+                    <label className="text-sm font-medium text-gray-900">Best Seller</label>
+                    <p className="text-xs text-gray-600 mt-1">Tandai sebagai menu terlaris</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setMenuForm({ ...menuForm, is_best_seller: !menuForm.is_best_seller })}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    menuForm.is_best_seller ? "bg-yellow-500" : "bg-gray-300"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      menuForm.is_best_seller ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Recommended Toggle */}
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div>
+                  <label className="text-sm font-medium text-gray-900">Rekomendasi</label>
+                  <p className="text-xs text-gray-600 mt-1">Tampilkan di slider rekomendasi</p>
+                </div>
+                <button
+                  onClick={() => setMenuForm({ ...menuForm, is_recommended: !menuForm.is_recommended })}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    menuForm.is_recommended ? "bg-orange-500" : "bg-gray-300"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      menuForm.is_recommended ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Best Seller Toggle */}
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Star className="w-4 h-4 text-yellow-500" />
+                  <div>
+                    <label className="text-sm font-medium text-gray-900">Best Seller</label>
+                    <p className="text-xs text-gray-600 mt-1">Tandai sebagai menu terlaris</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setMenuForm({ ...menuForm, is_best_seller: !menuForm.is_best_seller })}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    menuForm.is_best_seller ? "bg-yellow-500" : "bg-gray-300"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      menuForm.is_best_seller ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Recommended Toggle */}
+              <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div>
+                  <label className="text-sm font-medium text-gray-900">Rekomendasi</label>
+                  <p className="text-xs text-gray-600 mt-1">Tampilkan di slider rekomendasi</p>
+                </div>
+                <button
+                  onClick={() => setMenuForm({ ...menuForm, is_recommended: !menuForm.is_recommended })}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    menuForm.is_recommended ? "bg-orange-500" : "bg-gray-300"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      menuForm.is_recommended ? "translate-x-6" : "translate-x-1"
                     }`}
                   />
                 </button>

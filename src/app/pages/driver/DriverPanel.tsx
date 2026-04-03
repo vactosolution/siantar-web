@@ -14,11 +14,13 @@ import {
   Gift,
   Loader2,
   AlertTriangle,
+  MessageCircle,
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useData } from "../../contexts/DataContext";
 import { calculateOrderFinance, calculateDriverBonus, formatCurrency } from "../../utils/financeCalculations";
 import { Logo } from "../../components/Logo";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { toast } from "sonner";
 
 const MIN_BALANCE = 30000;
@@ -29,6 +31,12 @@ export function DriverPanel() {
   const { orders, drivers, updateOrderStatus, feeSettings, getDeliveryFee } = useData();
   const [activeOrder, setActiveOrder] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<{
+    title: string;
+    description: string;
+    onConfirm: () => void;
+  } | null>(null);
 
   // Get current driver's balance
   const currentDriver = drivers.find((d) => d.id === driverId);
@@ -155,7 +163,7 @@ export function DriverPanel() {
                 <span className="hidden sm:inline">Home</span>
               </Link>
               <button
-                onClick={logout}
+                onClick={() => setShowLogoutConfirm(true)}
                 className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <LogOut className="w-4 h-4" />
@@ -388,11 +396,39 @@ export function DriverPanel() {
                         </div>
 
                         <button
-                          onClick={() => handleAccept(order)}
-                          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors font-medium"
+                          onClick={() => {
+                            const phone = order.customer_phone?.replace(/^0/, '62');
+                            if (phone) {
+                              window.open(`https://wa.me/${phone}`, '_blank');
+                            } else {
+                              toast.error("Nomor telepon customer tidak tersedia");
+                            }
+                          }}
+                          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium mb-3"
                         >
-                          <CheckCircle className="w-5 h-5" />
-                          <span>Mulai Pengiriman</span>
+                          <MessageCircle className="w-5 h-5" />
+                          <span>WhatsApp Customer</span>
+                        </button>
+                        <button
+                          onClick={() => handleAccept(order)}
+                          disabled={driverBalance < MIN_BALANCE}
+                          className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
+                            driverBalance < MIN_BALANCE
+                              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                              : 'bg-orange-500 text-white hover:bg-orange-600'
+                          }`}
+                        >
+                          {driverBalance < MIN_BALANCE ? (
+                            <>
+                              <AlertTriangle className="w-5 h-5" />
+                              <span>Saldo Tidak Mencukupi</span>
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle className="w-5 h-5" />
+                              <span>Mulai Pengiriman</span>
+                            </>
+                          )}
                         </button>
                       </div>
                     );
@@ -517,7 +553,11 @@ export function DriverPanel() {
               <div className="space-y-3">
                 {activeOrder.status === "processing" && (
                   <button
-                    onClick={handleGoingToStore}
+                    onClick={() => setConfirmAction({
+                      title: "Menuju Toko",
+                      description: "Konfirmasi bahwa Anda akan menuju ke toko pengambilan?",
+                      onConfirm: handleGoingToStore,
+                    })}
                     disabled={loading}
                     className="w-full py-4 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50"
                   >
@@ -527,7 +567,11 @@ export function DriverPanel() {
                 )}
                 {activeOrder.status === "going-to-store" && (
                   <button
-                    onClick={handlePickup}
+                    onClick={() => setConfirmAction({
+                      title: "Ambil Pesanan",
+                      description: "Konfirmasi bahwa Anda akan mengambil pesanan dari toko?",
+                      onConfirm: handlePickup,
+                    })}
                     disabled={loading}
                     className="w-full py-4 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50"
                   >
@@ -537,7 +581,11 @@ export function DriverPanel() {
                 )}
                 {activeOrder.status === "picked-up" && (
                   <button
-                    onClick={handleDeliver}
+                    onClick={() => setConfirmAction({
+                      title: "Mulai Pengiriman",
+                      description: "Konfirmasi bahwa Anda akan memulai pengiriman ke customer?",
+                      onConfirm: handleDeliver,
+                    })}
                     disabled={loading}
                     className="w-full py-4 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50"
                   >
@@ -547,7 +595,11 @@ export function DriverPanel() {
                 )}
                 {activeOrder.status === "on-delivery" && (
                   <button
-                    onClick={handleComplete}
+                    onClick={() => setConfirmAction({
+                      title: "Selesaikan Pengiriman",
+                      description: "Konfirmasi bahwa Anda telah menyelesaikan pengiriman?",
+                      onConfirm: handleComplete,
+                    })}
                     disabled={loading}
                     className="w-full py-4 bg-green-500 text-white rounded-xl hover:bg-green-600 transition-colors font-medium flex items-center justify-center gap-2 disabled:opacity-50"
                   >
@@ -555,6 +607,15 @@ export function DriverPanel() {
                     Selesaikan Pengiriman
                   </button>
                 )}
+                <a
+                  href={`https://wa.me/${activeOrder.customer_phone?.replace(/^0/, '62')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium"
+                >
+                  <MessageCircle className="w-5 h-5" />
+                  WhatsApp Customer
+                </a>
               </div>
             </div>
 
@@ -567,6 +628,31 @@ export function DriverPanel() {
           </div>
         )}
       </main>
+
+      <ConfirmDialog
+        open={showLogoutConfirm}
+        onOpenChange={setShowLogoutConfirm}
+        title="Konfirmasi Logout"
+        description="Apakah Anda yakin ingin logout?"
+        confirmText="Ya, Logout"
+        cancelText="Batal"
+        onConfirm={async () => { await logout(); navigate("/login-driver"); }}
+      />
+
+      {confirmAction && (
+        <ConfirmDialog
+          open={true}
+          onOpenChange={(open) => !open && setConfirmAction(null)}
+          title={confirmAction.title}
+          description={confirmAction.description}
+          confirmText="Konfirmasi"
+          cancelText="Batal"
+          onConfirm={() => {
+            confirmAction.onConfirm();
+            setConfirmAction(null);
+          }}
+        />
+      )}
     </div>
   );
 }

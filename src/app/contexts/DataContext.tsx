@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { supabase } from "../../lib/supabase";
+import { subscribeToTable, unsubscribe } from "../../lib/realtime";
 import type { Tables, TablesInsert } from "../../lib/database.types";
 
 // Re-export types for backward compatibility
@@ -175,6 +176,19 @@ export function DataProvider({ children }: { children: ReactNode }) {
     refreshPaymentAccounts();
     refreshFeeSettings();
     refreshDistanceMatrix();
+
+    // Realtime subscriptions
+    const ordersChannel = subscribeToTable('orders', () => refreshOrders());
+    const productsChannel = subscribeToTable('products', () => refreshProducts());
+    const outletsChannel = subscribeToTable('outlets', () => refreshOutlets());
+    const profilesChannel = subscribeToTable('profiles', () => refreshDrivers());
+
+    return () => {
+      unsubscribe(ordersChannel);
+      unsubscribe(productsChannel);
+      unsubscribe(outletsChannel);
+      unsubscribe(profilesChannel);
+    };
   }, []);
 
   // Outlet CRUD
@@ -336,10 +350,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
     if (!data.user) throw new Error("Failed to create driver user");
 
-    // Store email in profile for display
+    // Store email in profile for display and set initial balance
     await supabase
       .from("profiles")
-      .update({ email } as any)
+      .update({ email, balance: 100000 } as any)
       .eq("id", data.user.id);
 
     await refreshDrivers();
@@ -380,14 +394,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return entry?.fee ?? 0;
   }, [distanceMatrix]);
 
-  // Update driver balance (positive = top up, negative = deduct)
+  // Update driver balance using atomic RPC (positive = top up, negative = deduct)
   const updateDriverBalance = useCallback(async (driverId: string, amount: number) => {
-    // Get current balance
-    const { data: driver } = await supabase.from("profiles").select("balance").eq("id", driverId).single();
-    if (!driver) throw new Error("Driver tidak ditemukan");
-    const newBalance = (driver.balance || 0) + amount;
-    if (newBalance < 0) throw new Error("Saldo tidak mencukupi");
-    const { error } = await supabase.from("profiles").update({ balance: newBalance }).eq("id", driverId);
+    const { error } = await supabase.rpc('update_driver_balance', {
+      p_driver_id: driverId,
+      p_amount: amount,
+    });
     if (error) throw error;
     await refreshDrivers();
   }, [refreshDrivers]);

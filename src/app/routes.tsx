@@ -21,6 +21,7 @@ import { DataProvider } from "./contexts/DataContext";
 import { CartProvider } from "./contexts/CartContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 
 function RootLayout() {
   return (

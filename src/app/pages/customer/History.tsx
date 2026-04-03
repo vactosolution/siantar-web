@@ -176,7 +176,7 @@ export function History() {
                       ? "Lihat Detail"
                       : "Lacak Pesanan"}
                   </button>
-                  <button className="py-2 bg-orange-500 text-white font-medium hover:bg-orange-600 rounded-lg transition-colors">
+                  <button onClick={() => navigate(`/home/store/${order.outlet_id}`)} className="py-2 bg-orange-500 text-white font-medium hover:bg-orange-600 rounded-lg transition-colors">
                     Pesan Lagi
                   </button>
                 </div>

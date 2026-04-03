@@ -22,6 +22,10 @@ import {
   Upload,
   Image as ImageIcon,
   Loader2,
+  Bell,
+  Wallet,
+  Image,
+  Copy,
 } from "lucide-react";
 import { useData } from "../../contexts/DataContext";
 import type { Order, Outlet, Profile } from "../../contexts/DataContext";
@@ -36,6 +40,10 @@ import { toast } from "sonner";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { useNotification } from "../../contexts/NotificationContext";
 import { uploadFile } from "../../../lib/supabase";
+import { BannerManagement } from "../../components/BannerManagement";
+import { NotificationManagement } from "../../components/NotificationManagement";
+import { DriverFinanceManagement } from "../../components/DriverFinanceManagement";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../components/ui/tabs";
 
 const VILLAGES = [
   "Desa Sekuningan Baru",
@@ -67,9 +75,11 @@ export function AdminPanel() {
     loadingDrivers,
   } = useData();
 
-  const [activeTab, setActiveTab] = useState<"dashboard" | "orders" | "drivers" | "stores" | "finance">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "orders" | "drivers" | "stores" | "finance" | "informasi" | "keuangan-driver">("dashboard");
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showDeleteOutletConfirm, setShowDeleteOutletConfirm] = useState<string | null>(null);
+  const [showAssignDriverConfirm, setShowAssignDriverConfirm] = useState<{ orderId: string; driverId: string } | null>(null);
 
   // Outlet management
   const [showOutletModal, setShowOutletModal] = useState(false);
@@ -132,6 +142,7 @@ export function AdminPanel() {
 
   const statusLabels: Record<string, string> = {
     pending: "Menunggu",
+    driver_assigned: "Driver Ditugaskan",
     processing: "Diproses",
     "going-to-store": "Ke Toko",
     "picked-up": "Diambil",
@@ -140,11 +151,13 @@ export function AdminPanel() {
   };
 
   const navigationItems = [
-    { id: "dashboard", label: "Dashboard", icon: TrendingUp },
-    { id: "orders", label: "Orders", icon: ShoppingBag },
-    { id: "finance", label: "Finance", icon: DollarSign },
-    { id: "drivers", label: "Drivers", icon: Users },
-    { id: "stores", label: "Outlets", icon: Store },
+    { id: "dashboard", label: "Dasbor", icon: TrendingUp },
+    { id: "orders", label: "Pesanan", icon: ShoppingBag },
+    { id: "finance", label: "Keuangan", icon: DollarSign },
+    { id: "drivers", label: "Driver", icon: Users },
+    { id: "stores", label: "Outlet", icon: Store },
+    { id: "informasi", label: "Informasi", icon: Bell },
+    { id: "keuangan-driver", label: "Keuangan Driver", icon: Wallet },
   ];
 
   const handleAddOutlet = () => {
@@ -206,12 +219,13 @@ export function AdminPanel() {
   };
 
   const handleDeleteOutlet = async (id: string) => {
-    if (!confirm("Yakin ingin menghapus outlet ini?")) return;
     try {
       await deleteOutlet(id);
       toast.success("Outlet berhasil dihapus");
     } catch (err: any) {
       toast.error(err.message || "Gagal menghapus outlet");
+    } finally {
+      setShowDeleteOutletConfirm(null);
     }
   };
 
@@ -220,6 +234,7 @@ export function AdminPanel() {
     if (!driver) return;
     try {
       await assignDriver(orderId, driverId, driver.name);
+      await updateOrder(orderId, { status: "driver_assigned" });
       setAssigningOrderId(null);
       toast.success(`Order di-assign ke ${driver.name}`);
     } catch (err: any) {
@@ -261,7 +276,7 @@ export function AdminPanel() {
       {/* Sidebar Desktop */}
       <aside className="hidden lg:flex lg:flex-col w-64 bg-white border-r border-gray-200">
         <div className="p-6">
-          <Logo />
+          <Logo showText={false} size="lg" />
           <p className="text-sm text-gray-600 mt-1">Admin Panel</p>
         </div>
         <nav className="flex-1 px-4 space-y-2">
@@ -309,7 +324,7 @@ export function AdminPanel() {
           <div className="absolute inset-0 bg-black/50" onClick={() => setIsSidebarOpen(false)} />
           <aside className="absolute left-0 top-0 bottom-0 w-64 bg-white">
             <div className="p-6 flex items-center justify-between">
-              <Logo />
+          <Logo showText={false} size="lg" />
               <button onClick={() => setIsSidebarOpen(false)} className="p-2 hover:bg-gray-100 rounded-lg">
                 <X className="w-5 h-5" />
               </button>
@@ -370,14 +385,14 @@ export function AdminPanel() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
                 <div className="bg-white rounded-xl shadow-sm p-6">
                   <div className="flex items-center justify-between mb-2">
-                    <div className="text-sm text-gray-600">Total Orders</div>
+                    <div className="text-sm text-gray-600">Total Pesanan</div>
                     <ShoppingBag className="w-5 h-5 text-orange-500" />
                   </div>
                   <div className="text-3xl font-bold text-gray-900">{totalOrders}</div>
                 </div>
                 <div className="bg-white rounded-xl shadow-sm p-6">
                   <div className="flex items-center justify-between mb-2">
-                    <div className="text-sm text-gray-600">Revenue</div>
+                    <div className="text-sm text-gray-600">Pendapatan</div>
                     <DollarSign className="w-5 h-5 text-green-500" />
                   </div>
                   <div className="text-2xl font-bold text-gray-900">{formatCurrency(totalRevenue)}</div>
@@ -614,6 +629,17 @@ export function AdminPanel() {
 
           {activeTab === "finance" && <FinanceDashboard />}
           {activeTab === "drivers" && <DriverManagement />}
+          {activeTab === "informasi" && (
+            <Tabs defaultValue="banners">
+              <TabsList>
+                <TabsTrigger value="banners">Banner</TabsTrigger>
+                <TabsTrigger value="notifications">Notifikasi</TabsTrigger>
+              </TabsList>
+              <TabsContent value="banners"><BannerManagement /></TabsContent>
+              <TabsContent value="notifications"><NotificationManagement /></TabsContent>
+            </Tabs>
+          )}
+          {activeTab === "keuangan-driver" && <DriverFinanceManagement />}
           {activeTab === "stores" && (
             <div>
               <div className="flex justify-between items-center mb-6">

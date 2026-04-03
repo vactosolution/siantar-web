@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import type { ProductVariant, ProductExtra } from "./DataContext";
 
 export interface CartItem {
@@ -28,8 +28,24 @@ interface CartContextType {
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>([]);
-  const [notes, setNotes] = useState("");
+  const [items, setItems] = useState<CartItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('siantar_cart');
+      if (saved) return JSON.parse(saved);
+    } catch {}
+    return [];
+  });
+  const [notes, setNotes] = useState(() => {
+    return localStorage.getItem('siantar_cart_notes') || "";
+  });
+
+  useEffect(() => {
+    localStorage.setItem('siantar_cart', JSON.stringify(items));
+  }, [items]);
+
+  useEffect(() => {
+    localStorage.setItem('siantar_cart_notes', notes);
+  }, [notes]);
 
   const addItem = useCallback((newItem: Omit<CartItem, "quantity">) => {
     setItems((prev) => {

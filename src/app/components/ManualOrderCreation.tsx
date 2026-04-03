@@ -188,6 +188,7 @@ export function ManualOrderCreation({ onClose, onOrderCreated }: ManualOrderCrea
       saveCustomerData();
 
       const orderData: TablesInsert<"orders"> = {
+        id: crypto.randomUUID(),
         customer_name: customerName,
         customer_phone: customerPhone,
         customer_village: customerVillage,
@@ -211,7 +212,10 @@ export function ManualOrderCreation({ onClose, onOrderCreated }: ManualOrderCrea
         is_delivery_service: true,
       };
 
+      const orderId = orderData.id!;
+
       const itemsData: TablesInsert<"order_items">[] = orderItems.map((item) => ({
+        order_id: orderId,
         product_id: item.product.id,
         name: item.product.name,
         price: item.itemTotal / item.quantity,
@@ -223,14 +227,14 @@ export function ManualOrderCreation({ onClose, onOrderCreated }: ManualOrderCrea
           : null,
       }));
 
-      const orderId = await addOrder(orderData, itemsData);
+      const createdOrderId = await addOrder(orderData, itemsData);
       
       toast.success("Pesanan manual berhasil dibuat!", {
-        description: `Order ID: ${orderId}`,
+        description: `Order ID: ${createdOrderId}`,
         duration: 5000,
       });
 
-      onOrderCreated(orderId);
+      onOrderCreated(createdOrderId);
     } catch (error) {
       console.error("Error creating order:", error);
       toast.error("Gagal membuat pesanan", {

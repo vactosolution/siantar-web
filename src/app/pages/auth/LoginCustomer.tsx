@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router";
 import { useAuth } from "../../contexts/AuthContext";
 import { User, Phone, AlertCircle } from "lucide-react";
-import { Logo } from "../../components/Logo";
+import logoImg from "../../../assets/siantar-aja-logo.png";
 
 export function LoginCustomer() {
   const [name, setName] = useState("");
@@ -38,7 +38,7 @@ export function LoginCustomer() {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8 flex flex-col items-center">
-          <Logo size="xl" className="mb-4 filter brightness-0 invert" />
+          <img src={logoImg} alt="SiAnter" className="w-48 h-auto mb-4 filter brightness-0 invert" />
           <p className="text-gray-300 text-lg">Pesan Antar Cepat & Mudah</p>
         </div>
 

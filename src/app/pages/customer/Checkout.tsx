@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { ArrowLeft, MapPin } from "lucide-react";
+import { toast } from "sonner";
 import { useCart } from "../../contexts/CartContext";
 import { useData, Village } from "../../contexts/DataContext";
 import {
@@ -9,7 +10,7 @@ import {
   getDefaultFeeSettings,
   generateUniquePaymentCode,
 } from "../../utils/financeCalculations";
-import type { TablesInsert } from "../../lib/database.types";
+import type { TablesInsert } from "../../../lib/database.types";
 
 const VILLAGES: Village[] = [
   "Desa Sekuningan Baru",
@@ -60,19 +61,24 @@ export function Checkout() {
 
   const handleOrder = async () => {
     if (!name || !phone || !village || !address) {
-      alert("Mohon lengkapi semua data");
+      toast.error("Mohon lengkapi semua data");
       return;
     }
 
     if (!outlet) {
-      alert("Outlet tidak ditemukan");
+      toast.error("Outlet tidak ditemukan");
       return;
     }
 
     // Validate single-store order (all items must be from same store)
     const uniqueStores = new Set(items.map(item => item.outletId));
     if (uniqueStores.size > 1) {
-      alert("Pesanan harus dari satu toko yang sama");
+      toast.error("Pesanan harus dari satu toko yang sama");
+      return;
+    }
+
+    if (!outlet) {
+      toast.error("Outlet tidak ditemukan");
       return;
     }
 
@@ -141,7 +147,7 @@ export function Checkout() {
       }
     } catch (error) {
       console.error("Failed to create order:", error);
-      alert("Gagal membuat pesanan. Silakan coba lagi.");
+      toast.error("Gagal membuat pesanan. Silakan coba lagi.");
     } finally {
       setIsSubmitting(false);
     }

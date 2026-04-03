@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router";
 import { useAuth } from "../../contexts/AuthContext";
 import { User, Lock, AlertCircle, Shield } from "lucide-react";
-import { Logo } from "../../components/Logo";
+import logoImg from "../../../assets/siantar-aja-logo.png";
 
 export function LoginAdmin() {
   const [username, setUsername] = useState("");
@@ -32,10 +32,7 @@ export function LoginAdmin() {
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8 flex flex-col items-center">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-[#FF6A00] to-[#FF8534] rounded-3xl mb-4 shadow-2xl">
-            <Shield className="w-10 h-10 text-white" />
-          </div>
-          <Logo size="xl" className="mb-3 filter brightness-0 invert" />
+          <img src={logoImg} alt="SiAnter" className="w-48 h-auto mb-4 filter brightness-0 invert" />
           <p className="text-gray-300 text-lg">Admin Panel</p>
         </div>
 

@@ -1,5 +1,10 @@
-import { createContext, useContext, useState, ReactNode, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import { toast } from "sonner";
+import { supabase } from "../../lib/supabase";
+import { subscribeToTable, unsubscribe } from "../../lib/realtime";
+import type { Tables } from "../../lib/database.types";
+
+type DbNotification = Tables<"notifications">;
 
 export interface Notification {
   id: string;
@@ -11,15 +16,15 @@ export interface Notification {
 }
 
 interface NotificationContextType {
-  // Notifications
   notifications: Notification[];
+  dbNotifications: DbNotification[];
   addNotification: (notification: Omit<Notification, "id" | "timestamp" | "read">) => void;
   markAsRead: (notificationId: string) => void;
   markAllAsRead: () => void;
   clearNotifications: () => void;
   unreadCount: number;
+  markDbNotificationAsRead: (id: string) => Promise<void>;
 
-  // Toast notifications (wrapper for sonner)
   showSuccess: (message: string, description?: string) => void;
   showError: (message: string, description?: string) => void;
   showInfo: (message: string, description?: string) => void;
@@ -30,6 +35,28 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [dbNotifications, setDbNotifications] = useState<DbNotification[]>([]);
+
+  useEffect(() => {
+    const loadNotifications = async () => {
+      const { data } = await supabase
+        .from("notifications")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (data) setDbNotifications(data);
+    };
+    loadNotifications();
+
+    const channel = subscribeToTable("notifications", (payload) => {
+      if (payload.eventType === "INSERT") {
+        const newNotif = payload.new as DbNotification;
+        setDbNotifications((prev) => [newNotif, ...prev]);
+        toast.info(newNotif.title, { description: newNotif.message });
+      }
+    });
+
+    return () => { unsubscribe(channel); };
+  }, []);
 
   const addNotification = useCallback((notification: Omit<Notification, "id" | "timestamp" | "read">) => {
     const newNotification: Notification = {
@@ -41,7 +68,6 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
     setNotifications((prev) => [newNotification, ...prev]);
 
-    // Also show a toast notification
     toast.info(notification.message, {
       description: "Klik untuk melihat detail",
     });
@@ -65,9 +91,16 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     setNotifications([]);
   }, []);
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
+  const markDbNotificationAsRead = async (id: string) => {
+    await supabase.from("notifications").update({ is_read: true }).eq("id", id);
+    setDbNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
+    );
+  };
 
-  // Toast notification wrappers
+  const unreadCount = notifications.filter((n) => !n.read).length +
+    dbNotifications.filter((n) => !n.is_read).length;
+
   const showSuccess = useCallback((message: string, description?: string) => {
     toast.success(message, { description });
   }, []);
@@ -88,11 +121,13 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     <NotificationContext.Provider
       value={{
         notifications,
+        dbNotifications,
         addNotification,
         markAsRead,
         markAllAsRead,
         clearNotifications,
         unreadCount,
+        markDbNotificationAsRead,
         showSuccess,
         showError,
         showInfo,
