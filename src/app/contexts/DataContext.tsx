@@ -337,20 +337,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [refreshOrders]);
 
   const assignDriver = useCallback(async (orderId: string, driverId: string, driverName: string) => {
-    const { error } = await supabase
-      .from("orders")
-      .update({ driver_id: driverId, driver_name: driverName, status: "processing" })
-      .eq("id", orderId);
-    if (error) throw error;
-
-    await supabase.from("order_status_history").insert({
-      order_id: orderId,
-      status: "processing",
-      changed_by: driverId,
-      notes: `Driver ${driverName} di-assign`,
+    const { data, error } = await supabase.rpc('assign_driver_to_order', {
+      p_order_id: orderId,
+      p_driver_id: driverId,
+      p_driver_name: driverName,
     });
-
+    if (error) throw error;
     await refreshOrders();
+    return data;
   }, [refreshOrders]);
 
   // Driver CRUD

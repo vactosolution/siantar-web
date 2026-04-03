@@ -656,6 +656,14 @@ export type Database = {
         }
         Returns: string
       }
+      assign_driver_to_order: {
+        Args: {
+          p_order_id: string
+          p_driver_id: string
+          p_driver_name: string
+        }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
