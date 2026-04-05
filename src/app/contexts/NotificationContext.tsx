@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { supabase } from "../../lib/supabase";
 import { subscribeToTable, unsubscribe } from "../../lib/realtime";
 import type { Tables } from "../../lib/database.types";
+import { useAuth } from "./AuthContext";
 
 type DbNotification = Tables<"notifications">;
 
@@ -36,27 +37,60 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [dbNotifications, setDbNotifications] = useState<DbNotification[]>([]);
+  const { customerPhone, role } = useAuth();
 
+  // Load and subscribe to notifications when auth state changes
   useEffect(() => {
-    const loadNotifications = async () => {
-      const { data } = await supabase
-        .from("notifications")
-        .select("*")
-        .order("created_at", { ascending: false });
-      if (data) setDbNotifications(data);
-    };
-    loadNotifications();
+    // Clear notifications on logout or role change
+    setDbNotifications([]);
+    setNotifications([]);
 
-    const channel = subscribeToTable("notifications", (payload) => {
-      if (payload.eventType === "INSERT") {
-        const newNotif = payload.new as DbNotification;
-        setDbNotifications((prev) => [newNotif, ...prev]);
-        toast.info(newNotif.title, { description: newNotif.message });
-      }
-    });
+    // Only load DB notifications for customer role with phone filtering
+    if (role === "customer" && customerPhone) {
+      const loadNotifications = async () => {
+        const { data } = await supabase
+          .from("notifications")
+          .select("*")
+          .eq("customer_phone", customerPhone)
+          .order("created_at", { ascending: false });
+        if (data) setDbNotifications(data);
+      };
+      loadNotifications();
 
-    return () => { unsubscribe(channel); };
-  }, []);
+      const channel = subscribeToTable("notifications", (payload) => {
+        if (payload.eventType === "INSERT") {
+          const newNotif = payload.new as DbNotification;
+          // Only add if it matches the current customer's phone or is a broadcast
+          if (newNotif.customer_phone === customerPhone || newNotif.customer_phone === null || newNotif.target_role === "all") {
+            setDbNotifications((prev) => [newNotif, ...prev]);
+            toast.info(newNotif.title, { description: newNotif.message });
+          }
+        }
+      });
+
+      return () => { unsubscribe(channel); };
+    } else if (role !== "customer") {
+      // For admin/driver, load all notifications
+      const loadNotifications = async () => {
+        const { data } = await supabase
+          .from("notifications")
+          .select("*")
+          .order("created_at", { ascending: false });
+        if (data) setDbNotifications(data);
+      };
+      loadNotifications();
+
+      const channel = subscribeToTable("notifications", (payload) => {
+        if (payload.eventType === "INSERT") {
+          const newNotif = payload.new as DbNotification;
+          setDbNotifications((prev) => [newNotif, ...prev]);
+          toast.info(newNotif.title, { description: newNotif.message });
+        }
+      });
+
+      return () => { unsubscribe(channel); };
+    }
+  }, [role, customerPhone]);
 
   const addNotification = useCallback((notification: Omit<Notification, "id" | "timestamp" | "read">) => {
     const newNotification: Notification = {

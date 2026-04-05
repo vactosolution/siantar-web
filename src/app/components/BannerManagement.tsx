@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
-import { Plus, Edit2, Trash2, X, Loader2, Image as ImageIcon } from "lucide-react";
-import { supabase } from "../../lib/supabase";
+import { useState, useEffect, useRef } from "react";
+import { Plus, Edit2, Trash2, X, Loader2, Image as ImageIcon, Upload } from "lucide-react";
+import { supabase, uploadFile, deleteFile } from "../../lib/supabase";
 import { toast } from "sonner";
 import { ConfirmDialog } from "./ConfirmDialog";
 
@@ -22,6 +22,10 @@ export function BannerManagement() {
   const [editingBanner, setEditingBanner] = useState<Banner | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
     title: "",
     image_url: "",
@@ -46,12 +50,16 @@ export function BannerManagement() {
 
   const handleAdd = () => {
     setEditingBanner(null);
+    setImageFile(null);
+    setImagePreview(null);
     setForm({ title: "", image_url: "", link_url: "", is_active: true, sort_order: banners.length });
     setShowModal(true);
   };
 
   const handleEdit = (banner: Banner) => {
     setEditingBanner(banner);
+    setImageFile(null);
+    setImagePreview(banner.image_url);
     setForm({
       title: banner.title,
       image_url: banner.image_url,
@@ -62,16 +70,59 @@ export function BannerManagement() {
     setShowModal(true);
   };
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith("image/")) {
+        toast.error("Mohon pilih file gambar (JPG/PNG/WebP)");
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Ukuran file maksimal 5MB");
+        return;
+      }
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onload = (ev) => setImagePreview(ev.target?.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSave = async () => {
-    if (!form.title || !form.image_url) {
-      toast.error("Mohon lengkapi judul dan URL gambar");
+    if (!form.title) {
+      toast.error("Mohon lengkapi judul banner");
       return;
     }
+
     setSaving(true);
     try {
+      let imageUrl = form.image_url;
+
+      // Upload new image if file selected
+      if (imageFile) {
+        // Delete old image if editing
+        if (editingBanner && editingBanner.image_url) {
+          try {
+            const oldPath = editingBanner.image_url.split("/").slice(-2).join("/");
+            if (oldPath) await deleteFile("banners", oldPath);
+          } catch {
+            // Ignore delete error for old image
+          }
+        }
+
+        const path = `banner-${Date.now()}-${imageFile.name}`;
+        imageUrl = await uploadFile("banners", path, imageFile);
+      }
+
+      if (!imageUrl && !editingBanner) {
+        toast.error("Mohon upload gambar banner");
+        setSaving(false);
+        return;
+      }
+
       const data = {
         title: form.title,
-        image_url: form.image_url,
+        image_url: imageUrl || form.image_url,
         link_url: form.link_url || null,
         is_active: form.is_active,
         sort_order: form.sort_order,
@@ -98,6 +149,17 @@ export function BannerManagement() {
 
   const handleDelete = async (id: string) => {
     try {
+      // Get banner to delete image from storage
+      const banner = banners.find((b) => b.id === id);
+      if (banner?.image_url) {
+        try {
+          const path = banner.image_url.split("/").slice(-2).join("/");
+          if (path) await deleteFile("banners", path);
+        } catch {
+          // Ignore delete error for storage file
+        }
+      }
+
       const { error } = await supabase.from("banners").delete().eq("id", id);
       if (error) throw error;
       toast.success("Banner berhasil dihapus");
@@ -220,21 +282,48 @@ export function BannerManagement() {
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
                 />
               </div>
+
+              {/* Image Upload */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">URL Gambar</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Gambar Banner</label>
                 <input
-                  type="text"
-                  value={form.image_url}
-                  onChange={(e) => setForm({ ...form, image_url: e.target.value })}
-                  placeholder="https://..."
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="hidden"
                 />
-                {form.image_url && (
-                  <div className="mt-2 w-full h-32 bg-gray-100 rounded-lg overflow-hidden">
-                    <img src={form.image_url} alt="Preview" className="w-full h-full object-cover" />
+                {imagePreview ? (
+                  <div className="relative rounded-lg overflow-hidden border-2 border-gray-200">
+                    <img src={imagePreview} alt="Preview" className="w-full h-40 object-cover" />
+                    <button
+                      onClick={() => {
+                        setImageFile(null);
+                        setImagePreview(null);
+                        setForm({ ...form, image_url: "" });
+                        if (fileInputRef.current) fileInputRef.current.value = "";
+                      }}
+                      className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 shadow-md"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
+                ) : (
+                  <label className="block border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-orange-500 hover:bg-orange-50 transition-all cursor-pointer">
+                    <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                    <p className="text-sm font-medium text-gray-700">Klik untuk upload gambar</p>
+                    <p className="text-xs text-gray-500 mt-1">JPG, PNG, WebP (Max 5MB)</p>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      className="hidden"
+                    />
+                  </label>
                 )}
               </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">URL Link (opsional)</label>
                 <input
@@ -282,7 +371,7 @@ export function BannerManagement() {
               </button>
               <button
                 onClick={handleSave}
-                disabled={saving}
+                disabled={saving || uploading}
                 className="flex-1 px-4 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 font-medium disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : "Simpan"}

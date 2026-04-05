@@ -38,6 +38,7 @@ export function Home() {
   }, []);
 
   const allCategories = outlets
+    .filter(o => o.is_open !== false) // Only show outlets that are open
     .map((o) => o.category)
     .filter((v, i, a) => a.indexOf(v) === i);
   const [showAllCategories, setShowAllCategories] = useState(false);
@@ -50,13 +51,14 @@ export function Home() {
 
   // Filter outlets based on category and search
   const filteredOutlets = outlets.filter((outlet) => {
+    const isOpen = outlet.is_open !== false; // Default true if null/undefined
     const matchesCategory =
       selectedCategory === null || outlet.category === selectedCategory;
     const matchesSearch =
       outlet.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       outlet.village.toLowerCase().includes(searchQuery.toLowerCase()) ||
       outlet.category.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
+    return isOpen && matchesCategory && matchesSearch;
   });
 
   const recommendedProducts = products.filter((p) => p.is_recommended && p.is_available);
@@ -252,9 +254,9 @@ export function Home() {
         <div className="mb-6">
           <h2 className="text-xl font-bold text-gray-900">Pilih Outlet</h2>
           <p className="text-sm text-gray-600 mt-1">
-            {outlets.length === 0 
+            {outlets.length === 0
               ? "Belum ada outlet yang terdaftar"
-              : `${filteredOutlets.length} outlet tersedia`}
+              : `${filteredOutlets.length} outlet tersedia${outlets.filter(o => !o.is_open).length > 0 ? ` (${outlets.filter(o => !o.is_open).length} tutup)` : ""}`}
           </p>
         </div>
 

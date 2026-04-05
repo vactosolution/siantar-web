@@ -26,6 +26,8 @@ import {
   Wallet,
   Image,
   Copy,
+  DoorOpen,
+  DoorClosed,
 } from "lucide-react";
 import { useData } from "../../contexts/DataContext";
 import type { Order, Outlet, Profile } from "../../contexts/DataContext";
@@ -64,6 +66,7 @@ export function AdminPanel() {
     addOutlet,
     updateOutlet: updateOutletData,
     deleteOutlet,
+    toggleOutletOpen,
     assignDriver,
     updateOrder,
     rejectOrder,
@@ -622,6 +625,14 @@ export function AdminPanel() {
                               )}
                             </div>
                           )}
+                          {order.status === "driver_assigned" && (
+                            <div className="mt-3">
+                              <div className="w-full px-4 py-2 bg-gray-300 text-gray-500 rounded-lg text-sm text-center font-medium cursor-not-allowed">
+                                <CheckCircle2 className="w-4 h-4 inline mr-1" />
+                                Driver Ditugaskan
+                              </div>
+                            </div>
+                          )}
                           <div className="mt-3">
                             {showInvoiceTypeSelector === order.id ? (
                               <div className="bg-white border-2 border-orange-500 rounded-lg p-3">
@@ -714,9 +725,24 @@ export function AdminPanel() {
                                 <MapPin className="w-3 h-3" />
                                 {outlet.village}
                               </div>
+                              <div className="flex items-center gap-1 mt-1">
+                                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
+                                  outlet.is_open ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                                }`}>
+                                  {outlet.is_open ? <DoorOpen className="w-3 h-3" /> : <DoorClosed className="w-3 h-3" />}
+                                  {outlet.is_open ? "Buka" : "Tutup"}
+                                </span>
+                              </div>
                             </div>
                           </div>
                           <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              onClick={() => toggleOutletOpen(outlet.id)}
+                              className={`p-2 rounded-lg ${outlet.is_open ? 'text-green-600 hover:bg-green-50' : 'text-red-600 hover:bg-red-50'}`}
+                              title={outlet.is_open ? "Tutup Outlet" : "Buka Outlet"}
+                            >
+                              {outlet.is_open ? <DoorOpen className="w-4 h-4" /> : <DoorClosed className="w-4 h-4" />}
+                            </button>
                             <button onClick={() => handleEditOutlet(outlet)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg">
                               <Edit2 className="w-4 h-4" />
                             </button>

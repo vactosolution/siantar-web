@@ -34,8 +34,11 @@ export function OrderTracking() {
       return;
     }
     const customerName = localStorage.getItem("sianter_customer_name") || "";
+    const storedPhone = localStorage.getItem("sianter_customer_phone") || "";
+    // Use customerPhone from AuthContext OR fallback to localStorage
+    const activePhone = customerPhone || storedPhone;
     // Check BOTH name and phone match
-    const owns = currentOrder.customer_name === customerName && currentOrder.customer_phone === customerPhone;
+    const owns = currentOrder.customer_name === customerName && currentOrder.customer_phone === activePhone;
     setIsOwner(owns);
   }, [currentOrder, customerPhone]);
 

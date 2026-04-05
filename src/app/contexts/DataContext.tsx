@@ -48,6 +48,7 @@ interface DataContextType {
   addOutlet: (outlet: TablesInsert<"outlets">) => Promise<void>;
   updateOutlet: (id: string, outlet: Partial<TablesInsert<"outlets">>) => Promise<void>;
   deleteOutlet: (id: string) => Promise<void>;
+  toggleOutletOpen: (id: string) => Promise<void>;
   loadingOutlets: boolean;
 
   products: ProductWithDetails[];
@@ -63,7 +64,7 @@ interface DataContextType {
   updateOrderStatus: (orderId: string, status: OrderStatus, changedBy?: string) => Promise<void>;
   updateOrderPayment: (orderId: string, paymentData: { payment_proof_url?: string; payment_status?: string }) => Promise<void>;
   updateOrder: (orderId: string, updates: Partial<TablesInsert<"orders">>) => Promise<void>;
-  assignDriver: (orderId: string, driverId: string, driverName: string) => Promise<void>;
+  assignDriver: (orderId: string, driverId: string, driverName: string) => Promise<string>;
   rejectOrder: (orderId: string) => Promise<void>;
   deleteOrder: (orderId: string) => Promise<void>;
   refreshOrders: () => Promise<void>;
@@ -187,7 +188,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const ordersChannel = subscribeToTable('orders', () => refreshOrders());
     const productsChannel = subscribeToTable('products', () => refreshProducts());
     const outletsChannel = subscribeToTable('outlets', () => refreshOutlets());
-    const profilesChannel = subscribeToTable('profiles', () => refreshDrivers());
+
+    // Profiles: incremental update for driver balance/name changes
+    const profilesChannel = subscribeToTable('profiles', (payload) => {
+      if (payload.eventType === 'UPDATE' && payload.new.role === 'driver') {
+        setDrivers(prev => prev.map(d => d.id === payload.new.id ? { ...d, ...payload.new } as Profile : d));
+      } else if (payload.eventType === 'INSERT' && payload.new.role === 'driver') {
+        setDrivers(prev => [...prev, payload.new as Profile]);
+      } else if (payload.eventType === 'DELETE') {
+        setDrivers(prev => prev.filter(d => d.id !== payload.old.id));
+      } else {
+        // Fallback: full refresh for non-driver profile changes
+        refreshDrivers();
+      }
+    });
 
     return () => {
       unsubscribe(ordersChannel);
@@ -215,6 +229,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
     if (error) throw error;
     await refreshOutlets();
   }, [refreshOutlets]);
+
+  const toggleOutletOpen = useCallback(async (id: string) => {
+    const outlet = outlets.find(o => o.id === id);
+    if (!outlet) return;
+    const { error } = await supabase.from("outlets").update({ is_open: !outlet.is_open }).eq("id", id);
+    if (error) throw error;
+    await refreshOutlets();
+  }, [refreshOutlets, outlets]);
 
   // Product CRUD
   const addProduct = useCallback(async (
@@ -331,7 +353,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
   }, [refreshOrders]);
 
   const updateOrderPayment = useCallback(async (orderId: string, paymentData: { payment_proof_url?: string; payment_status?: string }) => {
-    const { error } = await supabase.from("orders").update(paymentData).eq("id", orderId);
+    const { error } = await supabase.rpc('update_order_payment', {
+      p_order_id: orderId,
+      p_payment_proof_url: paymentData.payment_proof_url || null,
+      p_payment_status: paymentData.payment_status || null,
+    });
     if (error) throw error;
     await refreshOrders();
   }, [refreshOrders]);
@@ -446,6 +472,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         addOutlet,
         updateOutlet,
         deleteOutlet,
+        toggleOutletOpen,
         loadingOutlets,
         products,
         addProduct,

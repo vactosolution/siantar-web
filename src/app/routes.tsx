@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate, Outlet } from "react-router";
+import { createHashRouter, Navigate, Outlet } from "react-router";
 import { CustomerLayout } from "./layouts/CustomerLayout";
 import { Home } from "./pages/customer/Home";
 import { StoreDetail } from "./pages/customer/StoreDetail";
@@ -37,7 +37,7 @@ function RootLayout() {
   );
 }
 
-export const router = createBrowserRouter([
+export const router = createHashRouter([
   {
     element: <RootLayout />,
     children: [

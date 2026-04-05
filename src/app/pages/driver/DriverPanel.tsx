@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
 import {
-  ArrowLeft,
   Package,
   MapPin,
   User,
@@ -24,6 +23,19 @@ import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { toast } from "sonner";
 
 const MIN_BALANCE = 30000;
+
+// Normalize phone number for WhatsApp URL: strip non-digits, convert leading 0 to 62
+const normalizePhoneForWhatsApp = (phone: string | null | undefined): string | null => {
+  if (!phone) return null;
+  const digitsOnly = phone.replace(/\D/g, '');
+  if (digitsOnly.startsWith('0')) {
+    return '62' + digitsOnly.slice(1);
+  }
+  if (digitsOnly.startsWith('62')) {
+    return digitsOnly;
+  }
+  return digitsOnly;
+};
 
 export function DriverPanel() {
   const { role, isAuthenticated, logout, driverId } = useAuth();
@@ -62,8 +74,18 @@ export function DriverPanel() {
     (o) => new Date(o.created_at).toDateString() === today
   );
 
-  const handleAccept = (order: any) => {
-    setActiveOrder(order);
+  const handleAccept = async (order: any) => {
+    if (loading) return; // Prevent double-click
+    setLoading(true);
+    try {
+      await updateOrderStatus(order.id, "processing", driverId);
+      const updatedOrder = { ...order, status: "processing" };
+      setActiveOrder(updatedOrder);
+      toast.success("Pesanan diterima, status: Diproses");
+    } catch {
+      toast.error("Gagal mengupdate status");
+    }
+    setLoading(false);
   };
 
   const handleGoingToStore = async () => {
@@ -152,16 +174,11 @@ export function DriverPanel() {
           <div className="flex items-center justify-between">
             <div>
               <Logo />
-              <p className="text-sm text-gray-600 mt-1">Driver Panel</p>
+              <p className="text-sm text-gray-600 mt-1">
+                Halo, {currentDriver?.name || "Driver"}!
+              </p>
             </div>
             <div className="flex items-center gap-2">
-              <Link
-                to="/home"
-                className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span className="hidden sm:inline">Home</span>
-              </Link>
               <button
                 onClick={() => setShowLogoutConfirm(true)}
                 className="flex items-center gap-2 px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
@@ -397,7 +414,7 @@ export function DriverPanel() {
 
                         <button
                           onClick={() => {
-                            const phone = order.customer_phone?.replace(/^0/, '62');
+                            const phone = normalizePhoneForWhatsApp(order.customer_phone);
                             if (phone) {
                               window.open(`https://wa.me/${phone}`, '_blank');
                             } else {
@@ -411,7 +428,7 @@ export function DriverPanel() {
                         </button>
                         <button
                           onClick={() => handleAccept(order)}
-                          disabled={driverBalance < MIN_BALANCE}
+                          disabled={driverBalance < MIN_BALANCE || loading}
                           className={`w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-colors ${
                             driverBalance < MIN_BALANCE
                               ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
@@ -423,10 +440,15 @@ export function DriverPanel() {
                               <AlertTriangle className="w-5 h-5" />
                               <span>Saldo Tidak Mencukupi</span>
                             </>
+                          ) : loading ? (
+                            <>
+                              <Loader2 className="w-5 h-5 animate-spin" />
+                              <span>Memproses...</span>
+                            </>
                           ) : (
                             <>
                               <CheckCircle className="w-5 h-5" />
-                              <span>Mulai Pengiriman</span>
+                              <span>Terima Pesanan</span>
                             </>
                           )}
                         </button>
@@ -550,6 +572,47 @@ export function DriverPanel() {
                 })()}
               </div>
 
+              {/* Progress Steps Tracker */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-2">
+                  {[
+                    { key: "processing", label: "Diproses", icon: "📋" },
+                    { key: "going-to-store", label: "Menuju Toko", icon: "🏪" },
+                    { key: "picked-up", label: "Pickup", icon: "📦" },
+                    { key: "on-delivery", label: "OTW", icon: "🚗" },
+                    { key: "completed", label: "Selesai", icon: "✅" },
+                  ].map((step, idx) => {
+                    const steps = ["processing", "going-to-store", "picked-up", "on-delivery", "completed"];
+                    const currentIdx = steps.indexOf(activeOrder.status);
+                    const isCompleted = idx < currentIdx;
+                    const isCurrent = idx === currentIdx;
+                    return (
+                      <div key={step.key} className="flex flex-col items-center flex-1">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg ${
+                          isCompleted ? "bg-green-500" : isCurrent ? "bg-orange-500 ring-4 ring-orange-100" : "bg-gray-200"
+                        }`}>
+                          {isCompleted ? "✓" : step.icon}
+                        </div>
+                        <div className={`text-xs mt-1 text-center font-medium ${
+                          isCompleted ? "text-green-600" : isCurrent ? "text-orange-600" : "text-gray-400"
+                        }`}>
+                          {step.label}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {/* Progress bar */}
+                <div className="relative h-1 bg-gray-200 rounded-full mt-2">
+                  {(() => {
+                    const steps = ["processing", "going-to-store", "picked-up", "on-delivery", "completed"];
+                    const currentIdx = steps.indexOf(activeOrder.status);
+                    const pct = currentIdx >= 0 ? ((currentIdx) / (steps.length - 1)) * 100 : 0;
+                    return <div className="absolute inset-y-0 left-0 bg-orange-500 rounded-full transition-all" style={{ width: `${pct}%` }} />;
+                  })()}
+                </div>
+              </div>
+
               <div className="space-y-3">
                 {activeOrder.status === "processing" && (
                   <button
@@ -607,15 +670,22 @@ export function DriverPanel() {
                     Selesaikan Pengiriman
                   </button>
                 )}
-                <a
-                  href={`https://wa.me/${activeOrder.customer_phone?.replace(/^0/, '62')}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium"
-                >
-                  <MessageCircle className="w-5 h-5" />
-                  WhatsApp Customer
-                </a>
+                {(() => {
+                  const phone = normalizePhoneForWhatsApp(activeOrder.customer_phone);
+                  return phone ? (
+                    <a
+                      href={`https://wa.me/${phone}?text=${encodeURIComponent(
+                        `Halo ${activeOrder.customer_name}, saya driver Anda.\n\nSaya ingin mengkonfirmasi pesanan:\nOrder ID: ${activeOrder.id.slice(0, 8)}\nTujuan: ${activeOrder.customer_village}\n\nTerima kasih!`
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors font-medium"
+                    >
+                      <MessageCircle className="w-5 h-5" />
+                      WhatsApp Customer
+                    </a>
+                  ) : null;
+                })()}
               </div>
             </div>
 
@@ -625,6 +695,15 @@ export function DriverPanel() {
             >
               Kembali ke Daftar Order
             </button>
+
+            <a
+              href={`/#/home/tracking/${activeOrder.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full py-3 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors text-center block font-medium"
+            >
+              🔗 Lihat Tracking Customer
+            </a>
           </div>
         )}
       </main>
