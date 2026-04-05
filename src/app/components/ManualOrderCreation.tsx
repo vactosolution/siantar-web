@@ -40,7 +40,7 @@ const VILLAGES: string[] = [
 ];
 
 export function ManualOrderCreation({ onClose, onOrderCreated }: ManualOrderCreationProps) {
-  const { outlets, products, getProductsByOutlet, addOrder, getDistance, getDeliveryFee, feeSettings } = useData();
+  const { outlets, products, getProductsByOutlet, addOrder, getDistance, getDeliveryFee, feeSettings, orders } = useData();
 
   // Loading state
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -134,7 +134,13 @@ export function ManualOrderCreation({ onClose, onOrderCreated }: ManualOrderCrea
   const finance = calculateOrderFinance(subtotal, distance, fees, deliveryFeeFromMatrix);
   
   // Generate unique payment code for transfer
-  const uniquePaymentCode = paymentMethod === "transfer" ? generateUniquePaymentCode() : undefined;
+  // Collect existing codes from today's orders to avoid duplicates
+  const today = new Date().toDateString();
+  const todayOrderCodes = orders
+    .filter(o => o.unique_payment_code && new Date(o.created_at).toDateString() === today)
+    .map(o => o.unique_payment_code as number);
+
+  const uniquePaymentCode = paymentMethod === "transfer" ? generateUniquePaymentCode(todayOrderCodes) : undefined;
   const finalPaymentAmount = uniquePaymentCode ? finance.total + uniquePaymentCode : finance.total;
 
   // Handle customer data autofill

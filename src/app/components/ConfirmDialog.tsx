@@ -17,7 +17,7 @@ interface ConfirmDialogProps {
   confirmText?: string;
   cancelText?: string;
   onConfirm: () => void;
-  variant?: "default" | "danger";
+  variant?: "default" | "danger" | "destructive";
 }
 
 export function ConfirmDialog({
@@ -35,6 +35,10 @@ export function ConfirmDialog({
     onOpenChange(false);
   };
 
+  const variantClass = variant === "destructive" || variant === "danger"
+    ? "bg-red-600 text-white hover:bg-red-700"
+    : "bg-[#FF6A00] text-white hover:bg-[#FF6A00]/90";
+
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent className="bg-white">
@@ -50,11 +54,7 @@ export function ConfirmDialog({
           </AlertDialogCancel>
           <AlertDialogAction
             onClick={handleConfirm}
-            className={
-              variant === "danger"
-                ? "bg-red-600 text-white hover:bg-red-700"
-                : "bg-[#FF6A00] text-white hover:bg-[#FF6A00]/90"
-            }
+            className={variantClass}
           >
             {confirmText}
           </AlertDialogAction>

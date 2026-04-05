@@ -1,21 +1,21 @@
 import { Link, useNavigate } from "react-router";
 import { Clock, MapPin, CheckCircle2, Package, Loader2 } from "lucide-react";
 import { useData } from "../../contexts/DataContext";
+import { useAuth } from "../../contexts/AuthContext";
 import { formatCurrency } from "../../utils/financeCalculations";
 import { motion } from "motion/react";
 
 export function History() {
   const { orders, loadingOrders } = useData();
+  const { customerPhone } = useAuth();
   const navigate = useNavigate();
 
   const customerName = localStorage.getItem("sianter_customer_name") || "";
-  const customerPhone = localStorage.getItem("sianter_customer_phone") || "";
 
-  // Filter orders for this customer
+  // Filter orders for this customer - MUST match BOTH name AND phone
   const customerOrders = orders.filter((order) => {
-    if (customerName && order.customer_name === customerName) return true;
-    if (customerPhone && order.customer_phone === customerPhone) return true;
-    return false;
+    if (!customerName || !customerPhone) return false;
+    return order.customer_name === customerName && order.customer_phone === customerPhone;
   });
 
   // Sort by most recent first

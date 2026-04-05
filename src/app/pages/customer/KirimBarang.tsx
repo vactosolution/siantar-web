@@ -37,7 +37,7 @@ const PACKAGE_CATEGORIES = [
 
 export function KirimBarang() {
   const navigate = useNavigate();
-  const { addOrder, getDistance, getDeliveryFee, feeSettings, outlets } = useData();
+  const { addOrder, getDistance, getDeliveryFee, feeSettings, outlets, orders } = useData();
 
   // Sender (Pengirim) Details
   const [senderName, setSenderName] = useState("");
@@ -124,8 +124,14 @@ export function KirimBarang() {
 
     try {
       // Generate unique 3-digit payment code for transfer payments
+      // Collect existing codes from today's orders to avoid duplicates
+      const today = new Date().toDateString();
+      const todayOrderCodes = orders
+        .filter(o => o.unique_payment_code && new Date(o.created_at).toDateString() === today)
+        .map(o => o.unique_payment_code as number);
+
       const uniquePaymentCode =
-        paymentMethod !== "cod" ? generateUniquePaymentCode() : null;
+        paymentMethod !== "cod" ? generateUniquePaymentCode(todayOrderCodes) : null;
 
       const finalPaymentAmount = uniquePaymentCode
         ? finance.total + uniquePaymentCode

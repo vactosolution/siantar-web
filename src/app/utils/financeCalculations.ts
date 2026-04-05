@@ -104,7 +104,16 @@ export function calculateDriverBonus(
   return { dailyBonus, weeklyBonus, totalBonus: dailyBonus + weeklyBonus };
 }
 
-// Generate 3-digit unique payment code
-export function generateUniquePaymentCode(): number {
-  return Math.floor(100 + Math.random() * 900); // 100-999
+// Generate 3-digit unique payment code (100-999)
+// Ensures the code is not already used in existingOrders
+export function generateUniquePaymentCode(existingOrderCodes: number[] = []): number {
+  const maxAttempts = 100;
+  for (let i = 0; i < maxAttempts; i++) {
+    const code = Math.floor(100 + Math.random() * 900); // 100-999
+    if (!existingOrderCodes.includes(code)) {
+      return code;
+    }
+  }
+  // Fallback: use timestamp-based code if all attempts fail
+  return 100 + (Date.now() % 900);
 }

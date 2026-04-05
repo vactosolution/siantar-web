@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router";
 import { ArrowLeft, Phone, CheckCircle2, Clock, Truck, MapPin, Package, Navigation, Bell, CreditCard, AlertCircle, MessageCircle, Loader2 } from "lucide-react";
 import { useData, OrderStatus } from "../../contexts/DataContext";
+import { useAuth } from "../../contexts/AuthContext";
 import { toast } from "sonner";
 import { motion } from "motion/react";
 import { Logo } from "../../components/Logo";
@@ -19,10 +20,24 @@ export function OrderTracking() {
   const { orderId } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
   const { orders, drivers, refreshOrders, loadingOrders } = useData();
+  const { customerPhone } = useAuth();
   const [previousStatus, setPreviousStatus] = useState<string | null>(null);
   const [driverLocation, setDriverLocation] = useState(0);
+  const [isOwner, setIsOwner] = useState<boolean | null>(null);
 
   const currentOrder = orders.find(o => o.id === orderId);
+
+  // Validate ownership
+  useEffect(() => {
+    if (!currentOrder) {
+      setIsOwner(false);
+      return;
+    }
+    const customerName = localStorage.getItem("sianter_customer_name") || "";
+    // Check BOTH name and phone match
+    const owns = currentOrder.customer_name === customerName && currentOrder.customer_phone === customerPhone;
+    setIsOwner(owns);
+  }, [currentOrder, customerPhone]);
 
   // Auto-refresh every 3 seconds
   useEffect(() => {
@@ -100,6 +115,33 @@ export function OrderTracking() {
           </Link>
           <div className="bg-white rounded-xl shadow-sm p-12 text-center">
             <p className="text-gray-500">Order tidak ditemukan</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isOwner === false) {
+    return (
+      <div className="pb-20 md:pb-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <Link
+            to="/home"
+            className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5" />
+            <span>Kembali ke Home</span>
+          </Link>
+          <div className="bg-white rounded-xl shadow-sm p-12 text-center">
+            <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Akses Ditolak</h2>
+            <p className="text-gray-500 mb-4">Anda tidak memiliki akses ke pesanan ini.</p>
+            <Link
+              to="/home/history"
+              className="inline-block px-6 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors"
+            >
+              Lihat Riwayat Pesanan Anda
+            </Link>
           </div>
         </div>
       </div>

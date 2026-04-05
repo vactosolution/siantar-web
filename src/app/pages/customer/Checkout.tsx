@@ -23,7 +23,7 @@ const VILLAGES: Village[] = [
 
 export function Checkout() {
   const { items, subtotal: cartSubtotal, clearCart } = useCart();
-  const { addOrder, outlets, getDistance, getDeliveryFee, feeSettings } = useData();
+  const { addOrder, outlets, getDistance, getDeliveryFee, feeSettings, orders } = useData();
   const navigate = useNavigate();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -83,8 +83,14 @@ export function Checkout() {
 
     try {
       // Generate unique 3-digit payment code for transfer payments
+      // Collect existing codes from today's orders to avoid duplicates
+      const today = new Date().toDateString();
+      const todayOrderCodes = orders
+        .filter(o => o.unique_payment_code && new Date(o.created_at).toDateString() === today)
+        .map(o => o.unique_payment_code as number);
+
       const uniquePaymentCode = paymentMethod !== "cod"
-        ? generateUniquePaymentCode()
+        ? generateUniquePaymentCode(todayOrderCodes)
         : null;
 
       const finalPaymentAmount = uniquePaymentCode

@@ -1,6 +1,17 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from "react";
 import type { ProductVariant, ProductExtra } from "./DataContext";
 
+// Helper to get customer-specific storage keys
+function getCustomerCartKey(): string {
+  const phone = localStorage.getItem("sianter_customer_phone");
+  return phone ? `siantar_cart_${phone}` : "siantar_cart_global";
+}
+
+function getCustomerNotesKey(): string {
+  const phone = localStorage.getItem("sianter_customer_phone");
+  return phone ? `siantar_cart_notes_${phone}` : "siantar_cart_notes_global";
+}
+
 export interface CartItem {
   productId: string;
   name: string;
@@ -30,21 +41,21 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>(() => {
     try {
-      const saved = localStorage.getItem('siantar_cart');
+      const saved = localStorage.getItem(getCustomerCartKey());
       if (saved) return JSON.parse(saved);
     } catch {}
     return [];
   });
   const [notes, setNotes] = useState(() => {
-    return localStorage.getItem('siantar_cart_notes') || "";
+    return localStorage.getItem(getCustomerNotesKey()) || "";
   });
 
   useEffect(() => {
-    localStorage.setItem('siantar_cart', JSON.stringify(items));
+    localStorage.setItem(getCustomerCartKey(), JSON.stringify(items));
   }, [items]);
 
   useEffect(() => {
-    localStorage.setItem('siantar_cart_notes', notes);
+    localStorage.setItem(getCustomerNotesKey(), notes);
   }, [notes]);
 
   const addItem = useCallback((newItem: Omit<CartItem, "quantity">) => {

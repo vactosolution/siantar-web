@@ -64,19 +64,22 @@ export function Settings() {
     setLoading(true);
     try {
       for (const [key, value] of Object.entries(feeForm)) {
+        const parsedValue = parseInt(String(value)) || 0;
+        
         const { error } = await supabase
           .from("fee_settings")
-          .update({ value: parseInt(String(value)) || 0, updated_at: new Date().toISOString() })
-          .eq("key", key);
-        
+          .upsert({ key, value: parsedValue, updated_at: new Date().toISOString() }, { onConflict: "key" });
+
         if (error) {
-          console.error(`Error updating ${key}:`, error);
+          console.error(`Error upserting ${key}:`, error);
           throw error;
         }
       }
+      
       await refreshFeeSettings();
       toast.success("Pengaturan fee berhasil disimpan");
     } catch (err: any) {
+      console.error("Error saving fees:", err);
       toast.error(err.message || "Gagal menyimpan");
     }
     setLoading(false);

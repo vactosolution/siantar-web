@@ -155,7 +155,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   // Fetch fee settings
   const refreshFeeSettings = useCallback(async () => {
-    const { data } = await supabase.from("fee_settings").select("*");
+    const { data, error } = await supabase.from("fee_settings").select("*");
+    if (error) {
+      console.error("Error fetching fee_settings:", error);
+      return;
+    }
     const settings: Record<string, number> = {};
     (data || []).forEach((s) => {
       settings[s.key] = s.value;

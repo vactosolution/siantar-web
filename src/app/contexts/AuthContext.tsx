@@ -13,6 +13,7 @@ interface AuthContextType {
   login: (role: UserRole, username: string, password: string) => Promise<{ success: boolean; message?: string }>;
   logout: () => Promise<void>;
   username: string;
+  customerPhone: string; // For customer session identification
   driverId: string | null;
   sessionId: string | null;
 }
@@ -22,6 +23,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<UserRole>(null);
   const [username, setUsername] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
   const [driverId, setDriverId] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -36,6 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (customerName && customerPhone) {
         setRole("customer");
         setUsername(customerName);
+        setCustomerPhone(customerPhone);
         setLoading(false);
         return;
       }
@@ -84,6 +87,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (inputUsername && inputPassword) {
         setRole("customer");
         setUsername(inputUsername);
+        setCustomerPhone(inputPassword);
         // Store customer info in localStorage for session
         localStorage.setItem("sianter_customer_name", inputUsername);
         localStorage.setItem("sianter_customer_phone", inputPassword);
@@ -141,6 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
     setRole(null);
     setUsername("");
+    setCustomerPhone("");
     setDriverId(null);
     setSessionId(null);
     setProfile(null);
@@ -158,6 +163,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         logout,
         username,
+        customerPhone,
         driverId,
         sessionId,
       }}
