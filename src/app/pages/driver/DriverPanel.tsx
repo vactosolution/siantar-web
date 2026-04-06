@@ -88,58 +88,62 @@ export function DriverPanel() {
     setLoading(false);
   };
 
-  const handleGoingToStore = async () => {
-    if (activeOrder) {
-      setLoading(true);
-      try {
-        await updateOrderStatus(activeOrder.id, "going-to-store", driverId);
-        setActiveOrder({ ...activeOrder, status: "going-to-store" });
-        toast.success("Status diupdate: Menuju Toko");
-      } catch {
-        toast.error("Gagal mengupdate status");
-      }
+  const handleGoingToStore = async (): Promise<void> => {
+    if (!activeOrder) return;
+    setLoading(true);
+    try {
+      await updateOrderStatus(activeOrder.id, "going-to-store", driverId);
+      setActiveOrder({ ...activeOrder, status: "going-to-store" });
+      toast.success("Status diupdate: Menuju Toko");
+    } catch (err) {
+      console.error("Error updating status:", err);
+      toast.error("Gagal mengupdate status");
+    } finally {
       setLoading(false);
     }
   };
 
-  const handlePickup = async () => {
-    if (activeOrder) {
-      setLoading(true);
-      try {
-        await updateOrderStatus(activeOrder.id, "picked-up", driverId);
-        setActiveOrder({ ...activeOrder, status: "picked-up" });
-        toast.success("Pesanan berhasil diambil");
-      } catch {
-        toast.error("Gagal mengupdate status");
-      }
+  const handlePickup = async (): Promise<void> => {
+    if (!activeOrder) return;
+    setLoading(true);
+    try {
+      await updateOrderStatus(activeOrder.id, "picked-up", driverId);
+      setActiveOrder({ ...activeOrder, status: "picked-up" });
+      toast.success("Pesanan berhasil diambil");
+    } catch (err) {
+      console.error("Error updating status:", err);
+      toast.error("Gagal mengupdate status");
+    } finally {
       setLoading(false);
     }
   };
 
-  const handleDeliver = async () => {
-    if (activeOrder) {
-      setLoading(true);
-      try {
-        await updateOrderStatus(activeOrder.id, "on-delivery", driverId);
-        setActiveOrder({ ...activeOrder, status: "on-delivery" });
-        toast.success("Mulai pengiriman");
-      } catch {
-        toast.error("Gagal mengupdate status");
-      }
+  const handleDeliver = async (): Promise<void> => {
+    if (!activeOrder) return;
+    setLoading(true);
+    try {
+      await updateOrderStatus(activeOrder.id, "on-delivery", driverId);
+      setActiveOrder({ ...activeOrder, status: "on-delivery" });
+      toast.success("Mulai pengiriman");
+    } catch (err) {
+      console.error("Error updating status:", err);
+      toast.error("Gagal mengupdate status");
+    } finally {
       setLoading(false);
     }
   };
 
-  const handleComplete = async () => {
-    if (activeOrder) {
-      setLoading(true);
-      try {
-        await updateOrderStatus(activeOrder.id, "completed", driverId);
-        toast.success("Pengiriman selesai!");
-        setActiveOrder(null);
-      } catch {
-        toast.error("Gagal menyelesaikan order");
-      }
+  const handleComplete = async (): Promise<void> => {
+    if (!activeOrder) return;
+    setLoading(true);
+    try {
+      await updateOrderStatus(activeOrder.id, "completed", driverId);
+      toast.success("Pengiriman selesai!");
+      setActiveOrder(null);
+    } catch (err) {
+      console.error("Error completing order:", err);
+      toast.error("Gagal menyelesaikan order");
+    } finally {
       setLoading(false);
     }
   };
@@ -721,13 +725,14 @@ export function DriverPanel() {
       {confirmAction && (
         <ConfirmDialog
           open={true}
-          onOpenChange={(open) => !open && setConfirmAction(null)}
+          onOpenChange={(open) => !open && !loading && setConfirmAction(null)}
           title={confirmAction.title}
           description={confirmAction.description}
-          confirmText="Konfirmasi"
+          confirmText={loading ? "Memproses..." : "Konfirmasi"}
           cancelText="Batal"
-          onConfirm={() => {
-            confirmAction.onConfirm();
+          onConfirm={async () => {
+            if (loading) return;
+            await confirmAction.onConfirm();
             setConfirmAction(null);
           }}
         />

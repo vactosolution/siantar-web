@@ -60,8 +60,9 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       const channel = subscribeToTable("notifications", (payload) => {
         if (payload.eventType === "INSERT") {
           const newNotif = payload.new as DbNotification;
-          // Only add if it matches the current customer's phone or is a broadcast
-          if (newNotif.customer_phone === customerPhone || newNotif.customer_phone === null || newNotif.target_role === "all") {
+          // HANYA tambahkan jika MATCH nomor telepon customer YANG SEKARANG LOGIN SAJA
+          // ❌ HAPUS: kondisi `=== null` / broadcast untuk customer (semua notifikasi harus punya target phone)
+          if (newNotif.customer_phone === customerPhone) {
             setDbNotifications((prev) => [newNotif, ...prev]);
             toast.info(newNotif.title, { description: newNotif.message });
           }
