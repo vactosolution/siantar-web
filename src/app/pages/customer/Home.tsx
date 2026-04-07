@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router";
 import { Search, ShoppingBag, Package, Coffee, MapPin, Truck, X, Store, ImageIcon, Loader2, Star, Clock } from "lucide-react";
 import { useData } from "../../contexts/DataContext";
+import { useAuth } from "../../contexts/AuthContext";
 import { motion, AnimatePresence } from "motion/react";
 import { BannerCarousel } from "../../components/BannerCarousel";
 import { supabase } from "../../../lib/supabase";
@@ -24,6 +25,7 @@ export function Home() {
   const [showOrderNotification, setShowOrderNotification] = useState(true);
   const [banners, setBanners] = useState<Banner[]>([]);
   const { orders, outlets, loadingOutlets, getProductsByOutlet, products } = useData();
+  const { customerPhone } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -45,8 +47,23 @@ export function Home() {
   const visibleCategories = showAllCategories ? allCategories : foodCategories.slice(0, 6);
   const hasMore = allCategories.length > 6;
 
-  // Get active orders (not completed)
-  const activeOrders = orders.filter(order => order.status !== "completed");
+  // Normalize phone for comparison (08... <=> 628...)
+  const normalizePhone = (phone: string) => {
+    if (!phone) return "";
+    const digits = phone.replace(/\D/g, "");
+    if (digits.startsWith("08")) return "628" + digits.slice(1);
+    if (digits.startsWith("8") && !digits.startsWith("62")) return "628" + digits;
+    return digits;
+  };
+
+  // Get active orders belonging to the current customer only
+  const activeOrders = customerPhone
+    ? orders.filter(
+        order =>
+          order.status !== "completed" &&
+          normalizePhone(order.customer_phone) === normalizePhone(customerPhone)
+      )
+    : [];
   const latestActiveOrder = activeOrders[0];
 
   // Filter outlets based on category and search
