@@ -165,12 +165,6 @@ export function History() {
                       </span>
                     </div>
                     <div className="text-sm text-gray-900 flex justify-between">
-                      <span>Biaya Layanan</span>
-                      <span className="text-gray-600">
-                        {formatCurrency(order.service_fee)}
-                      </span>
-                    </div>
-                    <div className="text-sm text-gray-900 flex justify-between">
                       <span>Biaya Kirim</span>
                       <span className="text-gray-600">
                         {formatCurrency(order.delivery_fee)}

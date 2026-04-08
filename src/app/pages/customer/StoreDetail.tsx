@@ -58,7 +58,7 @@ export function StoreDetail() {
   };
 
   const calculateProductPrice = (product: ProductWithDetails) => {
-    let price = (product.discount_price ?? product.price) + 1000;
+    let price = (product.discount_price ?? product.price) + (outlet?.markup_enabled !== false ? 1000 : 0);
 
     const variantId = selectedVariants[product.id];
     if (variantId) {
@@ -92,7 +92,7 @@ export function StoreDetail() {
       addItem({
         productId: product.id,
         name: product.name,
-        basePrice: (product.discount_price ?? product.price) + 1000,
+        basePrice: (product.discount_price ?? product.price) + (outlet?.markup_enabled !== false ? 1000 : 0),
         selectedVariant,
         selectedExtras: productExtras,
         price,
@@ -227,9 +227,11 @@ export function StoreDetail() {
                     )}
                   </div>
                   <p className="text-orange-600 font-medium mt-1">
-                    <span className="line-through text-gray-400 text-sm mr-1">
-                      Rp {((product.discount_price ?? product.price) + 3000).toLocaleString("id-ID")}
-                    </span>
+                    {product.discount_price ? (
+                      <span className="line-through text-gray-400 text-sm mr-1">
+                        Rp {(product.price + (outlet?.markup_enabled !== false ? 1000 : 0)).toLocaleString("id-ID")}
+                      </span>
+                    ) : null}
                     Rp {calculateProductPrice(product).toLocaleString("id-ID")}
                   </p>
 

@@ -44,7 +44,7 @@ export interface OrderFinance {
 export function calculateOrderFinance(
   subtotal: number, // This should be the marked-up subtotal (store_price + 1000) * qty
   distance: number,
-  totalItems: number = 0, // Count of items to extract the Rp1000 marker
+  markupAmount: number = 0, // Explicitly passed markup total
   fees: FeeSettings = getDefaultFeeSettings(),
   directDeliveryFee?: number
 ): OrderFinance {
@@ -58,8 +58,8 @@ export function calculateOrderFinance(
   const driverEarning = deliveryFee * driverSharePct;
   const adminFromDelivery = deliveryFee * adminSharePct;
 
-  // New logic: markup is 1000 per item
-  const itemMarkupTotal = 1000 * totalItems;
+  // New logic: markup is passed down explicitly (since toggle can be OFF)
+  const itemMarkupTotal = markupAmount;
   const adminFee = 0; // Legacy admin fee is removed
   const serviceFee = 0; // Legacy service fee is removed
 

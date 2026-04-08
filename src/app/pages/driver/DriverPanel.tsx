@@ -42,7 +42,7 @@ export function DriverPanel() {
   const navigate = useNavigate();
   const {
     orders, drivers, updateOrderStatus, feeSettings,
-    driverRejectOrder, toggleDriverOnline, completeOrderWithDeduction
+    driverRejectOrder, toggleDriverOnline, completeOrderWithDeduction, updateDriverBalance
   } = useData();
   const [activeOrder, setActiveOrder] = useState<any>(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -59,15 +59,27 @@ export function DriverPanel() {
   const driverBalance = (currentDriver as any)?.balance ?? 0;
   const isOnline = (currentDriver as any)?.is_online ?? false;
 
-  // Sync activeOrder with realtime updates
+  // Sync activeOrder with realtime updates or auto-assign if none selected
   useEffect(() => {
     if (activeOrder) {
       const updated = orders.find(o => o.id === activeOrder.id);
       if (updated && updated.status !== activeOrder.status) {
         setActiveOrder(updated);
       }
+    } else if (driverId && orders.length > 0) {
+      // Auto-assign the most recent active order that this driver is already working on
+      const activeMyOrders = orders.filter(
+        (o) => o.driver_id === driverId && 
+        o.status !== "pending" && 
+        o.status !== "driver_assigned" && 
+        o.status !== "completed"
+      );
+      if (activeMyOrders.length > 0) {
+        const latestActive = activeMyOrders.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0];
+        setActiveOrder(latestActive);
+      }
     }
-  }, [orders, activeOrder]);
+  }, [orders, activeOrder, driverId]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -171,6 +183,21 @@ export function DriverPanel() {
     try {
       await completeOrderWithDeduction(activeOrder.id, driverId!);
       toast.success("Pengiriman selesai! Setoran otomatis dipotong.");
+      
+      // Auto Bonus Logic Check
+      const updatedStats = todayStats.orders + 1; // Since we just completed one
+      const prevBonus = calculateDriverBonus(todayStats.orders).totalBonus;
+      const newBonus = calculateDriverBonus(updatedStats).totalBonus;
+      if (newBonus > prevBonus) {
+        const bonusAmount = newBonus - prevBonus;
+        try {
+          await updateDriverBalance(driverId!, bonusAmount);
+          toast.success(`🎉 Selamat! Anda mencapai milestone ${updatedStats} pesanan dan mendapat bonus tambahan Rp${bonusAmount.toLocaleString("id-ID")}`);
+        } catch (err) {
+          console.error("Gagal top up bonus", err);
+        }
+      }
+
       setActiveOrder(null);
     } catch {
       try {

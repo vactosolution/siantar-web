@@ -7,7 +7,7 @@ import type { Tables, TablesInsert } from "../../lib/database.types";
 export type Village = string;
 export type OrderStatus = "pending" | "processing" | "going-to-store" | "picked-up" | "on-delivery" | "completed";
 
-export type Outlet = Tables<"outlets">;
+export type Outlet = Tables<"outlets"> & { markup_enabled?: boolean };
 export type Product = Tables<"products">;
 export type ProductVariant = Tables<"product_variants">;
 export type ProductExtra = Tables<"product_extras">;

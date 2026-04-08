@@ -92,7 +92,9 @@ export function Checkout() {
   };
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-  const finance = calculateOrderFinance(cartSubtotal, distance, totalItems, fees, deliveryFeeFromMatrix);
+  const isMarkupEnabled = outlet?.markup_enabled !== false;
+  const markupAmount = isMarkupEnabled ? 1000 * totalItems : 0;
+  const finance = calculateOrderFinance(cartSubtotal, distance, markupAmount, fees, deliveryFeeFromMatrix);
 
   const handleOrder = async () => {
     if (!name || !phone || !village || !address) {
@@ -139,7 +141,7 @@ export function Checkout() {
         distance,
         charged_distance: finance.chargedDistance,
         delivery_fee: finance.deliveryFee,
-        service_fee: totalItems * 1000, // Storing item markup in service_fee for backward compat
+        service_fee: markupAmount, // Storing item markup in service_fee for backward compat
         admin_fee: finance.adminFee,
         total: finance.total,
         payment_method: paymentMethod === "cod" ? "cod" : "transfer",
