@@ -58,7 +58,12 @@ export function StoreDetail() {
   };
 
   const calculateProductPrice = (product: ProductWithDetails) => {
-    let price = (product.discount_price ?? product.price) + (outlet?.markup_enabled !== false ? 1000 : 0);
+    // Base price (use discount if available)
+    let basePrice = product.discount_price ?? product.price;
+    
+    // Apply markup only if product.markup_enabled is true
+    const productMarkup = (product as any).markup_enabled !== false ? 1000 : 0;
+    let price = basePrice + productMarkup;
 
     const variantId = selectedVariants[product.id];
     if (variantId) {
@@ -87,15 +92,17 @@ export function StoreDetail() {
         .map((id) => product.extras?.find((e) => e.id === id))
         .filter((e): e is ProductExtra => !!e);
 
-      const price = calculateProductPrice(product);
+      // Apply markup at product level
+      const productMarkup = (product as any).markup_enabled !== false ? 1000 : 0;
+      const basePrice = (product.discount_price ?? product.price) + productMarkup;
 
       addItem({
         productId: product.id,
         name: product.name,
-        basePrice: (product.discount_price ?? product.price) + (outlet?.markup_enabled !== false ? 1000 : 0),
+        basePrice,
         selectedVariant,
         selectedExtras: productExtras,
-        price,
+        price: calculateProductPrice(product),
         outletId: storeId,
         outletName: outlet.name,
         imageUrl: product.image_url,
@@ -229,7 +236,7 @@ export function StoreDetail() {
                   <p className="text-orange-600 font-medium mt-1">
                     {product.discount_price ? (
                       <span className="line-through text-gray-400 text-sm mr-1">
-                        Rp {(product.price + (outlet?.markup_enabled !== false ? 1000 : 0)).toLocaleString("id-ID")}
+                        Rp {(product.price + ((product as any).markup_enabled !== false ? 1000 : 0)).toLocaleString("id-ID")}
                       </span>
                     ) : null}
                     Rp {calculateProductPrice(product).toLocaleString("id-ID")}

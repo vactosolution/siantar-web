@@ -8,15 +8,18 @@ export type Village = string;
 export type OrderStatus = "pending" | "processing" | "going-to-store" | "picked-up" | "on-delivery" | "completed";
 
 export type Outlet = Tables<"outlets"> & { markup_enabled?: boolean };
-export type Product = Tables<"products">;
+export type Product = Tables<"products"> & { markup_enabled?: boolean };
 export type ProductVariant = Tables<"product_variants">;
 export type ProductExtra = Tables<"product_extras">;
 export type Order = Tables<"orders">;
 export type OrderItem = Tables<"order_items">;
 
-// Extended order item with product image
+// Extended order item with product data
 export interface OrderItemWithProduct extends OrderItem {
   image_url?: string | null;
+  product_name?: string;
+  product_price?: number;
+  markup_enabled?: boolean;
 }
 export type Profile = Tables<"profiles">;
 export type PaymentAccount = Tables<"payment_accounts">;
@@ -520,7 +523,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
     const { data: items, error } = await supabase
       .from('order_items')
-      .select('*, products:product_id(image_url)')
+      .select('*, products:product_id(image_url, name, price, markup_enabled)')
       .eq('order_id', orderId)
       .order('created_at');
 
@@ -532,6 +535,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
     const enrichedItems: OrderItemWithProduct[] = (items || []).map((item: any) => ({
       ...item,
       image_url: item.products?.image_url || null,
+      product_name: item.products?.name || item.name,
+      product_price: item.products?.price || item.price,
+      markup_enabled: item.products?.markup_enabled ?? true,
       products: undefined, // Clean up the join artifact
     }));
 

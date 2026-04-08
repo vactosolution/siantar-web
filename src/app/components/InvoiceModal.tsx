@@ -153,10 +153,15 @@ export function InvoiceModal({ order, type, onClose }: InvoiceModalProps) {
   // Dashed line divider
   const dashedLine = "- ".repeat(30);
 
+  // Calculate outlet vs customer pricing
+  // For OUTLET invoice: use original product prices (no markup)
+  // For CUSTOMER invoice: use prices with markup (if enabled)
   const markup = order.service_fee || 0;
   const legacyAdminFee = order.admin_fee || 0;
+  
+  // Outlet sees original prices (subtotal without markup)
   const storeSubtotal = order.subtotal - markup;
-  const storeGrandTotal = storeSubtotal - legacyAdminFee;
+  const storeGrandTotal = storeSubtotal; // No admin fee deduction for outlet
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
@@ -311,26 +316,36 @@ export function InvoiceModal({ order, type, onClose }: InvoiceModalProps) {
               ) : orderItems.length > 0 ? (
                 <div>
                   <div style={{ fontWeight: 'bold', fontSize: '10px', marginBottom: '6px' }}>PESANAN:</div>
-                  {orderItems.map((item, idx) => (
-                    <div key={item.id || idx} style={{ marginBottom: '6px', fontSize: '10px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ flex: 1, wordBreak: 'break-word' }}>{item.name}</span>
-                      </div>
-                      {item.selected_variant && (
-                        <div style={{ fontSize: '8px', color: '#666', paddingLeft: '4px' }}>
-                          Varian: {item.selected_variant}
+                  {orderItems.map((item, idx) => {
+                    // For outlet invoice: show original price
+                    // For customer invoice: show price with markup (if enabled)
+                    const itemMarkup = (item as any).markup_enabled !== false ? 1000 : 0;
+                    const displayPrice = type === "outlet" 
+                      ? item.product_price || item.price 
+                      : (item.product_price || item.price) + itemMarkup;
+                    const displayItemTotal = displayPrice * item.quantity;
+
+                    return (
+                      <div key={item.id || idx} style={{ marginBottom: '6px', fontSize: '10px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ flex: 1, wordBreak: 'break-word' }}>{item.name}</span>
                         </div>
-                      )}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px' }}>
-                        <span style={{ paddingLeft: '4px' }}>
-                          {formatCurrency(item.price)} x{item.quantity}
-                        </span>
-                        <span style={{ fontWeight: 'bold' }}>
-                          {formatCurrency(item.item_total)}
-                        </span>
+                        {item.selected_variant && (
+                          <div style={{ fontSize: '8px', color: '#666', paddingLeft: '4px' }}>
+                            Varian: {item.selected_variant}
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px' }}>
+                          <span style={{ paddingLeft: '4px' }}>
+                            {formatCurrency(displayPrice)} x{item.quantity}
+                          </span>
+                          <span style={{ fontWeight: 'bold' }}>
+                            {formatCurrency(displayItemTotal)}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                   {/* Items subtotal */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', marginTop: '6px', paddingTop: '4px', borderTop: '1px dashed #ccc' }}>
                     <span>Subtotal ({orderItems.reduce((s, i) => s + i.quantity, 0)} item):</span>
