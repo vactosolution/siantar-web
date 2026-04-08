@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { motion } from "motion/react";
 import { Logo } from "../../components/Logo";
 import { formatCurrency } from "../../utils/financeCalculations";
+import { OrderItemsDetail } from "../../components/OrderItemsDetail";
 
 const orderStatuses: Array<{ id: string; label: string; icon: typeof Clock; description: string }> = [
   { id: "pending", label: "Menunggu Konfirmasi", icon: Clock, description: "Pesanan menunggu konfirmasi admin" },
@@ -510,8 +511,16 @@ export function OrderTracking() {
           className="bg-white rounded-2xl shadow-lg p-6"
         >
           <h3 className="font-semibold text-gray-900 mb-4">Detail Pesanan</h3>
-          <div className="space-y-3">
-            <div className="border-t pt-3 mt-3">
+          
+          {/* Inline Order Items */}
+          <OrderItemsDetail
+            orderId={currentOrder.id}
+            outletName={currentOrder.outlet_name}
+            mode="inline"
+          />
+
+          <div className="space-y-3 mt-4">
+            <div className="border-t pt-3">
               <div className="flex justify-between text-sm mb-2">
                 <span className="text-gray-600">Subtotal</span>
                 <span className="text-gray-900">{formatCurrency(currentOrder.subtotal)}</span>

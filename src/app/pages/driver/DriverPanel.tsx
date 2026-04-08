@@ -19,12 +19,14 @@ import {
   Wifi,
   WifiOff,
   Clock,
+  ShoppingBag,
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useData } from "../../contexts/DataContext";
 import { calculateOrderFinance, calculateDriverBonus, formatCurrency } from "../../utils/financeCalculations";
 import { Logo } from "../../components/Logo";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { OrderItemsDetail } from "../../components/OrderItemsDetail";
 import { toast } from "sonner";
 
 const MIN_BALANCE = 30000;
@@ -54,6 +56,7 @@ export function DriverPanel() {
     description: string;
     onConfirm: () => void;
   } | null>(null);
+  const [showOrderItemsDetail, setShowOrderItemsDetail] = useState<{ orderId: string; outletName: string } | null>(null);
 
   const currentDriver = drivers.find((d) => d.id === driverId);
   const driverBalance = (currentDriver as any)?.balance ?? 0;
@@ -481,6 +484,14 @@ export function DriverPanel() {
                           </div>
 
                           <button
+                            onClick={() => setShowOrderItemsDetail({ orderId: order.id, outletName: order.outlet_name })}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors font-medium mb-3"
+                          >
+                            <ShoppingBag className="w-5 h-5" />
+                            <span>Lihat Pesanan</span>
+                          </button>
+
+                          <button
                             onClick={() => {
                               const phone = normalizePhoneForWhatsApp(order.customer_phone);
                               if (phone) window.open(`https://wa.me/${phone}`, '_blank');
@@ -667,6 +678,15 @@ export function DriverPanel() {
                     </div>
                   );
                 })()}
+
+                {/* Lihat Pesanan Button in Active Order */}
+                <button
+                  onClick={() => setShowOrderItemsDetail({ orderId: activeOrder.id, outletName: activeOrder.outlet_name })}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-50 text-blue-700 border border-blue-200 rounded-xl hover:bg-blue-100 transition-colors font-medium"
+                >
+                  <ShoppingBag className="w-5 h-5" />
+                  <span>Lihat Detail Pesanan</span>
+                </button>
               </div>
 
               {/* Progress Steps */}
@@ -816,6 +836,16 @@ export function DriverPanel() {
           confirmText={actionLoading ? "Memproses..." : "Konfirmasi"}
           cancelText="Batal"
           onConfirm={confirmAction.onConfirm}
+        />
+      )}
+
+      {/* Order Items Detail Modal */}
+      {showOrderItemsDetail && (
+        <OrderItemsDetail
+          orderId={showOrderItemsDetail.orderId}
+          outletName={showOrderItemsDetail.outletName}
+          mode="modal"
+          onClose={() => setShowOrderItemsDetail(null)}
         />
       )}
     </div>

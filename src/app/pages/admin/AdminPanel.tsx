@@ -46,6 +46,7 @@ import { BannerManagement } from "../../components/BannerManagement";
 import { NotificationManagement } from "../../components/NotificationManagement";
 import { DriverFinanceManagement } from "../../components/DriverFinanceManagement";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../components/ui/tabs";
+import { OrderItemsDetail } from "../../components/OrderItemsDetail";
 
 const VILLAGE_GROUPS = [
   {
@@ -98,6 +99,7 @@ export function AdminPanel() {
   const [showAssignDriverConfirm, setShowAssignDriverConfirm] = useState<{ orderId: string; driverId: string } | null>(null);
   const [showRejectOrderConfirm, setShowRejectOrderConfirm] = useState<string | null>(null);
   const [showDeleteOrderConfirm, setShowDeleteOrderConfirm] = useState<string | null>(null);
+  const [showOrderItemsDetail, setShowOrderItemsDetail] = useState<{ orderId: string; outletName: string } | null>(null);
 
   // Outlet management
   const [showOutletModal, setShowOutletModal] = useState(false);
@@ -593,6 +595,14 @@ export function AdminPanel() {
                           </div>
                         </div>
                         <div className="lg:text-right">
+                          {/* Lihat Pesanan Button */}
+                          <button
+                            onClick={() => setShowOrderItemsDetail({ orderId: order.id, outletName: order.outlet_name })}
+                            className="w-full mb-3 px-4 py-2.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+                          >
+                            <ShoppingBag className="w-4 h-4" />
+                            Lihat Pesanan
+                          </button>
                           <div className="bg-orange-50 rounded-lg p-4 space-y-2 text-sm">
                             <div className="flex justify-between gap-6">
                               <span className="text-gray-600">Subtotal:</span>
@@ -926,6 +936,16 @@ export function AdminPanel() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Order Items Detail Modal */}
+      {showOrderItemsDetail && (
+        <OrderItemsDetail
+          orderId={showOrderItemsDetail.orderId}
+          outletName={showOrderItemsDetail.outletName}
+          mode="modal"
+          onClose={() => setShowOrderItemsDetail(null)}
+        />
       )}
 
       {/* Invoice Modal */}

@@ -1,6 +1,7 @@
-import { useRef, useState } from "react";
-import { X, Printer, Download, Image as ImageIcon } from "lucide-react";
-import { Order } from "../contexts/DataContext";
+import { useRef, useState, useEffect } from "react";
+import { X, Printer, Download, Image as ImageIcon, Loader2 } from "lucide-react";
+import { Order, type OrderItemWithProduct } from "../contexts/DataContext";
+import { useData } from "../contexts/DataContext";
 import { formatCurrency } from "../utils/financeCalculations";
 import html2canvas from "html2canvas";
 import { toast } from "sonner";
@@ -14,6 +15,24 @@ interface InvoiceModalProps {
 export function InvoiceModal({ order, type, onClose }: InvoiceModalProps) {
   const invoiceRef = useRef<HTMLDivElement>(null);
   const [receiptWidth, setReceiptWidth] = useState<"58mm" | "80mm">("80mm");
+  const { fetchOrderItems } = useData();
+  const [orderItems, setOrderItems] = useState<OrderItemWithProduct[]>([]);
+  const [loadingItems, setLoadingItems] = useState(true);
+
+  // Fetch order items on mount
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setLoadingItems(true);
+      const items = await fetchOrderItems(order.id);
+      if (!cancelled) {
+        setOrderItems(items);
+        setLoadingItems(false);
+      }
+    };
+    load();
+    return () => { cancelled = true; };
+  }, [order.id, fetchOrderItems]);
 
   // Pixel width for receipt sizes (at 96 DPI)
   const widthInPixels = receiptWidth === "58mm" ? 220 : 302;
@@ -285,16 +304,51 @@ export function InvoiceModal({ order, type, onClose }: InvoiceModalProps) {
               </>
             )}
 
-            {/* Items List - display from order data */}
+            {/* Items List - display actual order items */}
             <div style={{ marginBottom: '8px' }}>
-              <div style={{ marginBottom: '8px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', marginTop: '2px' }}>
-                  <span>Subtotal (items):</span>
-                  <span style={{ fontWeight: 'bold' }}>
-                    {type === "customer" ? formatCurrency(order.subtotal) : formatCurrency(storeSubtotal)}
-                  </span>
+              {loadingItems ? (
+                <div style={{ textAlign: 'center', fontSize: '9px', padding: '8px 0' }}>Memuat item...</div>
+              ) : orderItems.length > 0 ? (
+                <div>
+                  <div style={{ fontWeight: 'bold', fontSize: '10px', marginBottom: '6px' }}>PESANAN:</div>
+                  {orderItems.map((item, idx) => (
+                    <div key={item.id || idx} style={{ marginBottom: '6px', fontSize: '10px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <span style={{ flex: 1, wordBreak: 'break-word' }}>{item.name}</span>
+                      </div>
+                      {item.selected_variant && (
+                        <div style={{ fontSize: '8px', color: '#666', paddingLeft: '4px' }}>
+                          Varian: {item.selected_variant}
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '9px' }}>
+                        <span style={{ paddingLeft: '4px' }}>
+                          {formatCurrency(item.price)} x{item.quantity}
+                        </span>
+                        <span style={{ fontWeight: 'bold' }}>
+                          {formatCurrency(item.item_total)}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                  {/* Items subtotal */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', marginTop: '6px', paddingTop: '4px', borderTop: '1px dashed #ccc' }}>
+                    <span>Subtotal ({orderItems.reduce((s, i) => s + i.quantity, 0)} item):</span>
+                    <span style={{ fontWeight: 'bold' }}>
+                      {type === "customer" ? formatCurrency(order.subtotal) : formatCurrency(storeSubtotal)}
+                    </span>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div style={{ marginBottom: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', marginTop: '2px' }}>
+                    <span>Subtotal (items):</span>
+                    <span style={{ fontWeight: 'bold' }}>
+                      {type === "customer" ? formatCurrency(order.subtotal) : formatCurrency(storeSubtotal)}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Divider */}

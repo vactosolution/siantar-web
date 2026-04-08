@@ -13,6 +13,11 @@ export type ProductVariant = Tables<"product_variants">;
 export type ProductExtra = Tables<"product_extras">;
 export type Order = Tables<"orders">;
 export type OrderItem = Tables<"order_items">;
+
+// Extended order item with product image
+export interface OrderItemWithProduct extends OrderItem {
+  image_url?: string | null;
+}
 export type Profile = Tables<"profiles">;
 export type PaymentAccount = Tables<"payment_accounts">;
 export type FeeSetting = Tables<"fee_settings">;
@@ -92,6 +97,9 @@ interface DataContextType {
   driverRejectOrder: (orderId: string, driverId: string) => Promise<void>;
   toggleDriverOnline: (driverId: string) => Promise<boolean>;
   completeOrderWithDeduction: (orderId: string, driverId: string) => Promise<void>;
+
+  orderItemsCache: Record<string, OrderItemWithProduct[]>;
+  fetchOrderItems: (orderId: string) => Promise<OrderItemWithProduct[]>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -104,6 +112,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [paymentAccounts, setPaymentAccounts] = useState<PaymentAccount[]>([]);
   const [feeSettings, setFeeSettings] = useState<Record<string, number>>({});
   const [distanceMatrix, setDistanceMatrix] = useState<DistanceMatrix[]>([]);
+  const [orderItemsCache, setOrderItemsCache] = useState<Record<string, OrderItemWithProduct[]>>({});
 
   const [loadingOutlets, setLoadingOutlets] = useState(true);
   const [loadingProducts, setLoadingProducts] = useState(true);
@@ -502,6 +511,34 @@ export function DataProvider({ children }: { children: ReactNode }) {
     await refreshDrivers();
   }, [refreshOrders, refreshDrivers]);
 
+  // Fetch order items for a specific order (lazy-load with cache)
+  const fetchOrderItems = useCallback(async (orderId: string): Promise<OrderItemWithProduct[]> => {
+    // Return cached data if available
+    if (orderItemsCache[orderId]) {
+      return orderItemsCache[orderId];
+    }
+
+    const { data: items, error } = await supabase
+      .from('order_items')
+      .select('*, products:product_id(image_url)')
+      .eq('order_id', orderId)
+      .order('created_at');
+
+    if (error) {
+      console.error('fetchOrderItems error:', error);
+      return [];
+    }
+
+    const enrichedItems: OrderItemWithProduct[] = (items || []).map((item: any) => ({
+      ...item,
+      image_url: item.products?.image_url || null,
+      products: undefined, // Clean up the join artifact
+    }));
+
+    setOrderItemsCache(prev => ({ ...prev, [orderId]: enrichedItems }));
+    return enrichedItems;
+  }, [orderItemsCache]);
+
   return (
     <DataContext.Provider
       value={{
@@ -547,6 +584,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
         driverRejectOrder,
         toggleDriverOnline,
         completeOrderWithDeduction,
+        orderItemsCache,
+        fetchOrderItems,
       }}
     >
       {children}
