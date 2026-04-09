@@ -10,9 +10,6 @@ export function ServiceSelection() {
       <div className="w-full max-w-2xl">
         {/* Logo */}
         <div className="text-center mb-12">
-          <div className="inline-block bg-white/10 backdrop-blur-lg rounded-2xl p-6 mb-6">
-            <Logo />
-          </div>
           <h1 className="text-3xl md:text-4xl font-bold text-white mb-3">
             Selamat Datang di SiAnter
           </h1>
