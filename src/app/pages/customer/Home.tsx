@@ -57,10 +57,12 @@ export function Home() {
   };
 
   // Get active orders belonging to the current customer only
+  // Only show orders that are NOT cancelled and NOT completed
   const activeOrders = customerPhone
     ? orders.filter(
         order =>
           order.status !== "completed" &&
+          order.status !== "cancelled" &&
           normalizePhone(order.customer_phone) === normalizePhone(customerPhone)
       )
     : [];

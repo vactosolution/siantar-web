@@ -17,6 +17,7 @@ const orderStatuses: Array<{ id: string; label: string; icon: typeof Clock; desc
   { id: "picked-up", label: "Pesanan diambil", icon: Package, description: "Pesanan sudah diambil dari toko" },
   { id: "on-delivery", label: "Dalam perjalanan", icon: Truck, description: "Driver sedang mengantar pesanan" },
   { id: "completed", label: "Selesai", icon: CheckCircle2, description: "Pesanan telah sampai" },
+  { id: "cancelled", label: "Dibatalkan", icon: AlertCircle, description: "Pesanan telah dibatalkan" },
 ];
 
 export function OrderTracking() {
@@ -70,6 +71,8 @@ export function OrderTracking() {
   }, [refreshOrders]);
 
   // Detect status changes and notify
+  // DISABLED - commented out to prevent toast notifications for cancelled orders
+  /*
   useEffect(() => {
     if (!currentOrder) return;
 
@@ -85,6 +88,7 @@ export function OrderTracking() {
     }
     setPreviousStatus(currentOrder.status);
   }, [currentOrder?.status]);
+  */
 
   // Simulate driver location progress based on status
   useEffect(() => {
@@ -98,6 +102,7 @@ export function OrderTracking() {
       "picked-up": 50,
       "on-delivery": 75,
       "completed": 100,
+      "cancelled": 0,
     };
 
     const targetProgress = statusProgress[currentOrder.status] || 0;
@@ -213,13 +218,15 @@ export function OrderTracking() {
               <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full ${
                 currentOrder.status === "completed"
                   ? "bg-green-500 text-white"
+                  : currentOrder.status === "cancelled"
+                  ? "bg-red-500 text-white"
                   : "bg-white text-orange-600"
               }`}>
                 <div className={`w-2 h-2 rounded-full ${
-                  currentOrder.status === "completed" ? "bg-white" : "bg-orange-600 animate-pulse"
+                  currentOrder.status === "completed" ? "bg-white" : currentOrder.status === "cancelled" ? "bg-white" : "bg-orange-600 animate-pulse"
                 }`} />
                 <span className="font-medium">
-                  {currentOrder.status === "completed" ? "Selesai" : "Aktif"}
+                  {currentOrder.status === "completed" ? "Selesai" : currentOrder.status === "cancelled" ? "Dibatalkan" : "Aktif"}
                 </span>
               </div>
             </div>
@@ -272,6 +279,25 @@ export function OrderTracking() {
                 </div>
               </div>
             </button>
+          </motion.div>
+        )}
+
+        {/* Cancelled Order Banner */}
+        {currentOrder.status === "cancelled" && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-red-50 border-2 border-red-200 rounded-2xl p-6 mb-6"
+          >
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <h4 className="font-semibold text-red-900 mb-1">Pesanan Dibatalkan</h4>
+                <p className="text-sm text-red-800">
+                  Pesanan ini telah dibatalkan. Jika Anda sudah melakukan pembayaran, silakan hubungi admin untuk pengembalian dana.
+                </p>
+              </div>
+            </div>
           </motion.div>
         )}
 

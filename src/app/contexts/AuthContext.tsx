@@ -59,6 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (profileData.role === "driver") {
             setDriverId(profileData.id);
           }
+          setSessionId(session.access_token);
         }
       }
       setLoading(false);
@@ -66,8 +67,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     checkSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (!session) {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      // Ignore TOKEN_REFRESHED and SIGNED_IN - checkSession handles initial load, login() handles new logins
+      if (event === "TOKEN_REFRESHED" || event === "SIGNED_IN") return;
+
+      if (event === "SIGNED_OUT") {
         // Prevent clearing states if it's a customer accessing via localStorage.
         const activeCustomerName = localStorage.getItem("sianter_customer_name");
         if (activeCustomerName) {
@@ -78,6 +82,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setDriverId(null);
         setSessionId(null);
         setProfile(null);
+        return;
+      }
+
+      // Handle other events (USER_UPDATED, PASSWORD_RECOVERY, etc.)
+      if (session?.user) {
+        const { data: profileData } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", session.user.id)
+          .single();
+
+        if (profileData) {
+          setProfile(profileData);
+          setRole(profileData.role as UserRole);
+          setUsername(profileData.name);
+          if (profileData.role === "driver") {
+            setDriverId(profileData.id);
+          }
+          setSessionId(session.access_token);
+        }
       }
     });
 
@@ -90,6 +114,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Customer login - no real auth, just name and phone
     if (userRole === "customer") {
       if (inputUsername && inputPassword) {
+        // Clear any Supabase session to prevent conflicts
+        await supabase.auth.signOut();
         setRole("customer");
         setUsername(inputUsername);
         setCustomerPhone(inputPassword);
@@ -103,6 +129,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Admin and Driver login via Supabase Auth
     try {
+      // Clear any lingering customer session from localStorage
+      localStorage.removeItem("sianter_customer_name");
+      localStorage.removeItem("sianter_customer_phone");
+
       const { data, error } = await supabase.auth.signInWithPassword({
         email: inputUsername,
         password: inputPassword,

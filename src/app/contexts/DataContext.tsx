@@ -21,7 +21,7 @@ export interface OrderItemWithProduct extends OrderItem {
   product_price?: number;
   markup_enabled?: boolean;
 }
-export type Profile = Tables<"profiles">;
+export type Profile = Tables<"profiles"> & { dana_number?: string };
 export type PaymentAccount = Tables<"payment_accounts">;
 export type FeeSetting = Tables<"fee_settings">;
 export type DistanceMatrix = Tables<"distance_matrix">;
@@ -199,7 +199,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     refreshFeeSettings();
     refreshDistanceMatrix();
 
-    // Realtime subscriptions
+    // Realtime subscriptions (WebSocket)
     const ordersChannel = subscribeToTable('orders', () => refreshOrders());
     const productsChannel = subscribeToTable('products', () => refreshProducts());
     const outletsChannel = subscribeToTable('outlets', () => refreshOutlets());
@@ -218,11 +218,21 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }
     });
 
+    // Fallback Polling: DISABLED for WebSocket-only testing
+    // Uncomment the lines below to enable polling every 5 seconds
+    /*
+    const pollingInterval = setInterval(() => {
+      refreshOrders();
+    }, 5000);
+    */
+    const pollingInterval = undefined as unknown as ReturnType<typeof setInterval>;
+
     return () => {
       unsubscribe(ordersChannel);
       unsubscribe(productsChannel);
       unsubscribe(outletsChannel);
       unsubscribe(profilesChannel);
+      if (pollingInterval) clearInterval(pollingInterval);
     };
   }, []);
 

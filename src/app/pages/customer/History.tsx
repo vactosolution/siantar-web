@@ -44,6 +44,8 @@ export function History() {
         return "bg-green-50 text-green-600";
       case "pending":
         return "bg-yellow-50 text-yellow-600";
+      case "cancelled":
+        return "bg-red-50 text-red-600";
       default:
         return "bg-orange-50 text-orange-600";
     }
@@ -55,6 +57,8 @@ export function History() {
         return "Selesai";
       case "pending":
         return "Menunggu";
+      case "cancelled":
+        return "Dibatalkan";
       case "processing":
         return "Diproses";
       case "going-to-store":
@@ -184,14 +188,18 @@ export function History() {
                     <ShoppingBag className="w-3.5 h-3.5" />
                     Detail
                   </button>
-                  <button
-                    onClick={() => navigate(`/home/tracking/${order.id}`)}
-                    className="py-2 text-orange-600 font-medium border-2 border-orange-500 hover:bg-orange-50 rounded-lg transition-colors"
-                  >
-                    {order.status === "completed"
-                      ? "Lacak"
-                      : "Lacak"}
-                  </button>
+                  {order.status !== "cancelled" ? (
+                    <button
+                      onClick={() => navigate(`/home/tracking/${order.id}`)}
+                      className="py-2 text-orange-600 font-medium border-2 border-orange-500 hover:bg-orange-50 rounded-lg transition-colors"
+                    >
+                      Lacak
+                    </button>
+                  ) : (
+                    <div className="py-2 text-center text-xs text-gray-400 font-medium">
+                      Dibatalkan
+                    </div>
+                  )}
                   <button onClick={() => navigate(`/home/store/${order.outlet_id}`)} className="py-2 bg-orange-500 text-white font-medium hover:bg-orange-600 rounded-lg transition-colors">
                     Pesan Lagi
                   </button>

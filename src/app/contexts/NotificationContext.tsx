@@ -39,61 +39,64 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const [dbNotifications, setDbNotifications] = useState<DbNotification[]>([]);
   const { customerPhone, role } = useAuth();
 
-  // Load and subscribe to notifications when auth state changes
+  // NOTIFICATIONS DISABLED FOR TESTING
+  // All notification loading and subscription code has been commented out.
+  // Uncomment the entire useEffect block below to re-enable notifications.
+  /*
   useEffect(() => {
-    // Clear ALL notifications immediately on any auth change
     setDbNotifications([]);
     setNotifications([]);
     toast.dismiss();
-
-    // Don't subscribe until we have auth info
     if (!role || !customerPhone) return;
 
     if (role === "customer") {
       const loadNotifications = async () => {
-        const { data } = await supabase
+        const { data: notifs } = await supabase
           .from("notifications")
           .select("*")
           .eq("customer_phone", customerPhone)
           .order("created_at", { ascending: false });
-        if (data) setDbNotifications(data);
+        if (!notifs) { setDbNotifications([]); return; }
+        const orderIds = [...new Set(notifs.map(n => n.order_id).filter(Boolean))];
+        let orderStatusMap: Record<string, string> = {};
+        if (orderIds.length > 0) {
+          const { data: orders } = await supabase.from("orders").select("id, status").in("id", orderIds);
+          if (orders) orderStatusMap = Object.fromEntries(orders.map(o => [o.id, o.status]));
+        }
+        const filtered = notifs.filter(n => !n.order_id || orderStatusMap[n.order_id] !== "cancelled");
+        setDbNotifications(filtered);
       };
       loadNotifications();
 
-      const channel = subscribeToTable("notifications", (payload) => {
+      const channel = subscribeToTable("notifications", async (payload) => {
         if (payload.eventType === "INSERT") {
           const newNotif = payload.new as DbNotification;
-          
           const normalizePhone = (p: string | null) => {
             if (!p) return null;
             let digits = p.replace(/\D/g, "");
             if (digits.startsWith("0")) digits = "62" + digits.slice(1);
             return digits;
           };
-          
           const notifPhone = normalizePhone(newNotif.customer_phone);
           const userPhone = normalizePhone(customerPhone);
-          
-          // Add if phone matches exactly OR if target phone is null (broadcast)
-          if (!newNotif.customer_phone || notifPhone === userPhone) {
+          const phoneMatches = !newNotif.customer_phone || notifPhone === userPhone;
+          if (phoneMatches) {
+            if (newNotif.order_id) {
+              const { data: orderData } = await supabase.from("orders").select("status").eq("id", newNotif.order_id).single();
+              if (orderData?.status === "cancelled") return;
+            }
             setDbNotifications((prev) => [newNotif, ...prev]);
             toast.info(newNotif.title, { description: newNotif.message });
           }
         }
       });
-
       return () => { unsubscribe(channel); };
     } else {
-      // For admin/driver, load all notifications
       const loadNotifications = async () => {
-        const { data } = await supabase
-          .from("notifications")
-          .select("*")
-          .order("created_at", { ascending: false });
+        const { data } = await supabase.from("notifications").select("*").order("created_at", { ascending: false });
         if (data) setDbNotifications(data);
       };
       loadNotifications();
-
       const channel = subscribeToTable("notifications", (payload) => {
         if (payload.eventType === "INSERT") {
           const newNotif = payload.new as DbNotification;
@@ -101,10 +104,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
           toast.info(newNotif.title, { description: newNotif.message });
         }
       });
-
       return () => { unsubscribe(channel); };
     }
   }, [role, customerPhone]);
+  */
 
   const addNotification = useCallback((notification: Omit<Notification, "id" | "timestamp" | "read">) => {
     const newNotification: Notification = {

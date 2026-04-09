@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Plus, Edit2, Trash2, X, Loader2, Image as ImageIcon, Upload } from "lucide-react";
+import { Plus, Edit2, Trash2, X, Loader2, Image as ImageIcon, Upload, Smartphone, Eye, EyeOff } from "lucide-react";
 import { supabase, uploadFile, deleteFile } from "../../lib/supabase";
 import { toast } from "sonner";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -26,6 +26,7 @@ export function BannerManagement() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showMobilePreview, setShowMobilePreview] = useState(false);
   const [form, setForm] = useState({
     title: "",
     image_url: "",
@@ -217,7 +218,7 @@ export function BannerManagement() {
         <div className="space-y-4">
           {banners.map((banner) => (
             <div key={banner.id} className="bg-white rounded-xl shadow-sm p-4 flex items-center gap-4">
-              <div className="w-32 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+              <div className="w-32 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0 relative">
                 {banner.image_url ? (
                   <img src={banner.image_url} alt={banner.title} className="w-full h-full object-cover" />
                 ) : (
@@ -225,6 +226,9 @@ export function BannerManagement() {
                     <ImageIcon className="w-6 h-6 text-gray-400" />
                   </div>
                 )}
+                <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[8px] px-1 py-0.5 text-center">
+                  Mobile 2:1
+                </div>
               </div>
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-gray-900 truncate">{banner.title}</div>
@@ -286,33 +290,57 @@ export function BannerManagement() {
               {/* Image Upload */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Gambar Banner</label>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="hidden"
-                />
                 {imagePreview ? (
-                  <div className="relative rounded-lg overflow-hidden border-2 border-gray-200">
-                    <img src={imagePreview} alt="Preview" className="w-full h-40 object-cover" />
+                  <div className="space-y-3">
+                    <div className="relative rounded-lg overflow-hidden border-2 border-gray-200">
+                      <img src={imagePreview} alt="Preview" className="w-full h-40 object-cover" />
+                      <button
+                        onClick={() => {
+                          setImageFile(null);
+                          setImagePreview(null);
+                          setForm({ ...form, image_url: "" });
+                          if (fileInputRef.current) fileInputRef.current.value = "";
+                        }}
+                        className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 shadow-md"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                    {/* Mobile Preview Toggle */}
                     <button
-                      onClick={() => {
-                        setImageFile(null);
-                        setImagePreview(null);
-                        setForm({ ...form, image_url: "" });
-                        if (fileInputRef.current) fileInputRef.current.value = "";
-                      }}
-                      className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 shadow-md"
+                      onClick={() => setShowMobilePreview(!showMobilePreview)}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors text-sm font-medium"
                     >
-                      <X className="w-4 h-4" />
+                      <Smartphone className="w-4 h-4" />
+                      {showMobilePreview ? "Sembunyikan" : "Lihat"} Preview Mobile
                     </button>
+                    {showMobilePreview && (
+                      <div className="bg-gray-900 rounded-3xl p-3 max-w-[200px] mx-auto">
+                        <div className="bg-black rounded-2xl overflow-hidden relative">
+                          {/* Safe area overlay */}
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="w-[85%] h-[70%] border-2 border-dashed border-white/50 rounded-lg flex items-center justify-center">
+                              <div className="text-white/70 text-[10px] text-center px-2">
+                                <Eye className="w-4 h-4 mx-auto mb-1" />
+                                Area Aman Teks & Logo
+                              </div>
+                            </div>
+                          </div>
+                          <img src={imagePreview} alt="Mobile Preview" className="w-full h-24 object-cover" />
+                        </div>
+                        {/* Phone notch */}
+                        <div className="w-16 h-1.5 bg-gray-700 rounded-full mx-auto mt-2" />
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <label className="block border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-orange-500 hover:bg-orange-50 transition-all cursor-pointer">
                     <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
                     <p className="text-sm font-medium text-gray-700">Klik untuk upload gambar</p>
-                    <p className="text-xs text-gray-500 mt-1">JPG, PNG, WebP (Max 5MB)</p>
+                    <div className="text-xs text-gray-500 mt-2 space-y-1">
+                      <p>📁 Maks file: <strong>5MB</strong> | Format: <strong>JPG / PNG / WEBP</strong></p>
+                      <p>📱 Ukuran rekomendasi mobile: <strong>1080 × 540 px</strong> (Rasio <strong>2:1</strong>)</p>
+                    </div>
                     <input
                       ref={fileInputRef}
                       type="file"

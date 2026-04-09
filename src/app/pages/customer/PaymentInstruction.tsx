@@ -167,6 +167,31 @@ export function PaymentInstruction() {
           </div>
         )}
 
+        {/* Payment Rejected - Show rejection reason */}
+        {(order as any).payment_status === "rejected" && (order as any).payment_rejection_reason && (
+          <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-6 mb-6 shadow-sm">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0">
+                <AlertCircle className="w-8 h-8 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-red-900 text-lg mb-1">
+                  Pembayaran Ditolak
+                </h3>
+                <p className="text-red-700 text-sm mb-2">
+                  Bukti pembayaran Anda ditolak oleh admin dengan alasan:
+                </p>
+                <div className="bg-white border border-red-200 rounded-lg p-3">
+                  <p className="text-red-800 font-medium">{(order as any).payment_rejection_reason}</p>
+                </div>
+                <p className="text-red-600 text-xs mt-2">
+                  Silakan upload ulang bukti pembayaran yang benar.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Main Payment Card */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden mb-6">
           {/* Payment Method Header */}

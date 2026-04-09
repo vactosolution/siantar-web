@@ -1,9 +1,10 @@
 import { useState } from "react";
-import { User, Phone, Plus, Edit2, Copy, Check, AlertCircle, Shield, Loader2, Trash2, Mail, Eye, EyeOff, Wallet } from "lucide-react";
+import { User, Phone, Plus, Edit2, Copy, Check, AlertCircle, Shield, Loader2, Trash2, Mail, Eye, EyeOff, Wallet, Key, CreditCard } from "lucide-react";
 import { useData, Profile } from "../contexts/DataContext";
 import { generateSecurePassword } from "../utils/credentialGenerator";
 import { formatCurrency } from "../utils/financeCalculations";
 import { toast } from "sonner";
+import { supabase } from "../../lib/supabase";
 
 export function DriverManagement() {
   const { drivers, orders, addDriver, updateDriver, deactivateDriver, deleteDriver, updateDriverBalance, loadingDrivers } = useData();
@@ -20,6 +21,12 @@ export function DriverManagement() {
   const [topUpDriver, setTopUpDriver] = useState<Profile | null>(null);
   const [topUpAmount, setTopUpAmount] = useState(100000);
   const [topUpLoading, setTopUpLoading] = useState(false);
+  const [showResetPasswordModal, setShowResetPasswordModal] = useState<Profile | null>(null);
+  const [resetPasswordLoading, setResetPasswordLoading] = useState(false);
+  const [newPassword, setNewPassword] = useState<string | null>(null);
+  const [showNewPasswordModal, setShowNewPasswordModal] = useState(false);
+  const [resetPasswordDriver, setResetPasswordDriver] = useState<Profile | null>(null);
+  const [showDanaNumber, setShowDanaNumber] = useState(false);
 
   // Store credentials per driver (email stored in profile, password shown once on creation)
   const [driverCredentials, setDriverCredentials] = useState<Record<string, { email: string; password: string }>>({});
@@ -27,6 +34,7 @@ export function DriverManagement() {
   const [driverForm, setDriverForm] = useState({
     name: "",
     phone: "",
+    dana_number: "",
   });
 
   const handleAddDriver = async () => {
@@ -44,7 +52,7 @@ export function DriverManagement() {
       setGeneratedCredentials({ email: creds.email, password: creds.password });
       setShowAddModal(false);
       setShowCredentialsModal(true);
-      setDriverForm({ name: "", phone: "" });
+      setDriverForm({ name: "", phone: "", dana_number: "" });
       toast.success("Driver berhasil ditambahkan");
     } catch (error: any) {
       toast.error(error.message || "Gagal menambahkan driver");
@@ -72,6 +80,7 @@ export function DriverManagement() {
     setDriverForm({
       name: driver.name,
       phone: driver.phone || "",
+      dana_number: (driver as any).dana_number || "",
     });
     setShowEditModal(true);
   };
@@ -88,10 +97,11 @@ export function DriverManagement() {
       await updateDriver(editingDriver.id, {
         name: driverForm.name,
         phone: driverForm.phone,
-      });
+        dana_number: driverForm.dana_number || null,
+      } as any);
       setShowEditModal(false);
       setEditingDriver(null);
-      setDriverForm({ name: "", phone: "" });
+      setDriverForm({ name: "", phone: "", dana_number: "" });
       toast.success("Data driver berhasil diperbarui");
     } catch (error: any) {
       toast.error(error.message || "Gagal memperbarui data driver");
@@ -142,6 +152,42 @@ export function DriverManagement() {
       toast.error(error.message || "Gagal top up saldo");
     } finally {
       setTopUpLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (driver: Profile) => {
+    if (!driver.email) {
+      toast.error("Driver tidak memiliki email terdaftar");
+      return;
+    }
+    setResetPasswordLoading(true);
+    try {
+      const newPassword = generateSecurePassword();
+      // Call Edge Function to reset password
+      const supabaseUrl = "https://fstkhagjevbmobliuevo.supabase.co";
+      const supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZzdGtoYWdqZXZibW9ibGl1ZXZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ2MjM4NzQsImV4cCI6MjA5MDE5OTg3NH0.xSOIdmgCriIxZBZizkEe3ABZHwsYYSUHMMytpTpm4hQ";
+
+      const response = await fetch(`${supabaseUrl}/functions/v1/reset-driver-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${supabaseAnonKey}`,
+        },
+        body: JSON.stringify({ driverId: driver.id, newPassword }),
+      });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || 'Gagal reset password');
+
+      setNewPassword(newPassword);
+      setResetPasswordDriver(driver);
+      setShowNewPasswordModal(true);
+      setShowResetPasswordModal(null);
+      toast.success("Password driver berhasil direset");
+    } catch (error: any) {
+      toast.error(error.message || "Gagal reset password");
+    } finally {
+      setResetPasswordLoading(false);
     }
   };
 
@@ -304,6 +350,23 @@ export function DriverManagement() {
                         </button>
                       </div>
                     )}
+                    {/* DANA Number */}
+                    {(driver as any).dana_number && (
+                      <div className="flex items-center gap-2 mt-2 pt-2 border-t border-gray-200">
+                        <CreditCard className="w-3 h-3 text-blue-500" />
+                        <span className="text-gray-500">DANA:</span>
+                        <span className="font-mono text-gray-900">{(driver as any).dana_number}</span>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText((driver as any).dana_number);
+                            toast.success("Nomor DANA disalin!");
+                          }}
+                          className="p-1 hover:bg-gray-200 rounded transition-colors"
+                        >
+                          <Copy className="w-3 h-3 text-gray-500" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -316,6 +379,18 @@ export function DriverManagement() {
                 >
                   <Edit2 className="w-4 h-4" />
                   <span>Edit</span>
+                </button>
+                <button
+                  onClick={() => setShowResetPasswordModal(driver)}
+                  disabled={resetPasswordLoading}
+                  className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-purple-50 text-purple-600 rounded-lg hover:bg-purple-100 transition-colors text-sm disabled:opacity-50"
+                >
+                  {resetPasswordLoading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Key className="w-4 h-4" />
+                  )}
+                  <span>Reset Password</span>
                 </button>
                 <button
                   onClick={() => handleDeactivateDriver(driver)}
@@ -424,7 +499,11 @@ export function DriverManagement() {
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div
             className="absolute inset-0 bg-black/50"
-            onClick={() => setShowEditModal(false)}
+            onClick={() => {
+              setShowEditModal(false);
+              setEditingDriver(null);
+              setDriverForm({ name: "", phone: "", dana_number: "" });
+            }}
           />
           <div className="relative bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Edit Driver</h2>
@@ -442,7 +521,7 @@ export function DriverManagement() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Nomor HP <span className="text-red-500">*</span>
+                  Nomor WhatsApp <span className="text-red-500">*</span>
                 </label>
                 <input
                   type="tel"
@@ -451,13 +530,26 @@ export function DriverManagement() {
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Nomor DANA <span className="text-gray-400 font-normal">(opsional)</span>
+                </label>
+                <input
+                  type="text"
+                  value={driverForm.dana_number}
+                  onChange={(e) => setDriverForm({ ...driverForm, dana_number: e.target.value })}
+                  placeholder="Contoh: 08xx-xxxx-xxxx"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                />
+                <p className="text-xs text-gray-500 mt-1">Untuk pencairan saldo driver via DANA</p>
+              </div>
             </div>
             <div className="flex gap-3 mt-6">
               <button
                 onClick={() => {
                   setShowEditModal(false);
                   setEditingDriver(null);
-                  setDriverForm({ name: "", phone: "" });
+                  setDriverForm({ name: "", phone: "", dana_number: "" });
                 }}
                 className="flex-1 px-4 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
                 disabled={saving}
@@ -644,6 +736,128 @@ export function DriverManagement() {
                 <span>Top Up</span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Password Modal */}
+      {showResetPasswordModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setShowResetPasswordModal(null)}
+          />
+          <div className="relative bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
+                <Key className="w-6 h-6 text-purple-600" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Reset Password</h2>
+                <p className="text-sm text-gray-600">{showResetPasswordModal.name}</p>
+              </div>
+            </div>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                <div className="text-sm text-yellow-800">
+                  <div className="font-semibold mb-1">Password baru akan di-generate otomatis</div>
+                  <div>Password baru akan ditampilkan sekali. Pastikan untuk menyimpan atau mengirimkannya ke driver segera.</div>
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowResetPasswordModal(null)}
+                className="flex-1 px-4 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium"
+              >
+                Batal
+              </button>
+              <button
+                onClick={() => handleResetPassword(showResetPasswordModal)}
+                disabled={resetPasswordLoading}
+                className="flex-1 px-4 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {resetPasswordLoading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Mereset...</span>
+                  </>
+                ) : (
+                  <>
+                    <Key className="w-5 h-5" />
+                    <span>Reset Password</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* New Password Display Modal */}
+      {showNewPasswordModal && newPassword && resetPasswordDriver && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center">
+          <div
+            className="absolute inset-0 bg-black/70"
+            onClick={() => {
+              setShowNewPasswordModal(false);
+              setNewPassword(null);
+              setResetPasswordDriver(null);
+            }}
+          />
+          <div className="relative bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl shadow-2xl p-8 w-full max-w-md mx-4 text-white">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                <Key className="w-6 h-6" />
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold">Password Baru Driver</h2>
+                <p className="text-purple-100 text-sm">{resetPasswordDriver.name}</p>
+              </div>
+            </div>
+
+            <div className="bg-white/10 backdrop-blur rounded-xl p-4 mb-4">
+              <div className="flex items-center gap-2">
+                <div className="flex-1 bg-white/20 backdrop-blur px-4 py-3 rounded-lg font-mono text-lg">
+                  {newPassword}
+                </div>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(newPassword);
+                    toast.success("Password disalin!");
+                  }}
+                  className="p-3 bg-white/20 hover:bg-white/30 rounded-lg transition-colors"
+                >
+                  <Copy className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-white/10 backdrop-blur border-2 border-white/30 rounded-xl p-4 mb-6">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+                <div className="text-sm">
+                  <div className="font-semibold mb-1">Penting!</div>
+                  <ul className="list-disc list-inside space-y-1 text-white/90">
+                    <li>Kirim password ini ke driver via WhatsApp</li>
+                    <li>Driver login menggunakan email dan password ini</li>
+                    <li>Password ini hanya ditampilkan sekali</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                setShowNewPasswordModal(false);
+                setNewPassword(null);
+                setResetPasswordDriver(null);
+              }}
+              className="w-full px-4 py-3 bg-white/20 hover:bg-white/30 rounded-xl transition-colors font-medium"
+            >
+              Tutup
+            </button>
           </div>
         </div>
       )}
