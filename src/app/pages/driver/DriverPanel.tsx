@@ -468,8 +468,13 @@ export function DriverPanel() {
                                   <span className="text-gray-600">Earning kamu:</span>
                                   <span className="font-semibold text-green-600">{formatCurrency(finance.driverEarning)}</span>
                                 </div>
-                                <div className="flex justify-between text-xs">
-                                  <span className="text-gray-600">Setor ke admin:</span>
+                                <div className="flex justify-between items-start text-xs">
+                                  <div className="flex flex-col">
+                                    <span className="text-gray-600">Setor ke admin:</span>
+                                    <span className="text-[10px] text-gray-500 leading-tight">
+                                      (20% ongkir: {formatCurrency(finance.setoranToAdmin - (order.service_fee || 0))} + markup: {formatCurrency(order.service_fee || 0)})
+                                    </span>
+                                  </div>
                                   <span className="font-semibold text-orange-600">{formatCurrency(finance.setoranToAdmin)}</span>
                                 </div>
                               </div>
@@ -672,6 +677,10 @@ export function DriverPanel() {
                           <div className="p-3 bg-white rounded-lg">
                             <div className="text-xs text-gray-600 mb-1">Setor Admin</div>
                             <div className="font-semibold text-orange-600">{formatCurrency(finance.setoranToAdmin)}</div>
+                            <div className="text-[8px] text-gray-400 leading-tight mt-1">
+                              20% Ongkir: {formatCurrency(finance.setoranToAdmin - (activeOrder.service_fee || 0))}<br/>
+                              Markup: {formatCurrency(activeOrder.service_fee || 0)}
+                            </div>
                           </div>
                         </div>
                       </div>

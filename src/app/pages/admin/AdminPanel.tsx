@@ -761,8 +761,16 @@ export function AdminPanel() {
                               <span className="font-bold text-orange-600">{formatCurrency(order.total)}</span>
                             </div>
                             <div className="border-t pt-2 space-y-1">
+                              <div className="flex justify-between gap-6 text-[10px] text-gray-500 italic">
+                                <span>- Potongan ongkir (20%):</span>
+                                <span>{formatCurrency(finance.setoranToAdmin - (order.service_fee || 0))}</span>
+                              </div>
+                              <div className="flex justify-between gap-6 text-[10px] text-gray-500 italic">
+                                <span>- Tambahan markup menu:</span>
+                                <span>{formatCurrency(order.service_fee || 0)}</span>
+                              </div>
                               <div className="flex justify-between gap-6">
-                                <span className="text-gray-600">↗ Setoran admin:</span>
+                                <span className="text-gray-600 font-medium">↗ Total Setoran admin:</span>
                                 <span className="font-semibold text-green-600">{formatCurrency(finance.setoranToAdmin)}</span>
                               </div>
                               <div className="flex justify-between gap-6">

@@ -164,7 +164,14 @@ export function FinanceDashboard() {
 
   // Driver statistics
   const driverStats = useMemo(() => {
-    const stats = new Map<string, { name: string; orders: number; earnings: number; setoran: number }>();
+    const stats = new Map<string, { 
+      name: string; 
+      orders: number; 
+      earnings: number; 
+      setoran: number;
+      setoranOngkir: number;
+      setoranMarkup: number;
+    }>();
 
     filteredOrders.forEach(order => {
       if (!order.driver_id || !order.driver_name) return;
@@ -173,13 +180,16 @@ export function FinanceDashboard() {
       const adminSharePct = fees.admin_share_pct / 100;
       const driverEarning = (order.delivery_fee ?? 0) * driverSharePct;
       const adminFromDelivery = (order.delivery_fee ?? 0) * adminSharePct;
-      const setoranAmount = adminFromDelivery + (order.service_fee ?? 0) + (order.admin_fee ?? 0);
-      
+      const markupAmount = (order.service_fee ?? 0);
+      const setoranAmount = adminFromDelivery + markupAmount + (order.admin_fee ?? 0);
+
       const current = stats.get(order.driver_id) || {
         name: order.driver_name,
         orders: 0,
         earnings: 0,
         setoran: 0,
+        setoranOngkir: 0,
+        setoranMarkup: 0,
       };
 
       stats.set(order.driver_id, {
@@ -187,12 +197,13 @@ export function FinanceDashboard() {
         orders: current.orders + 1,
         earnings: current.earnings + driverEarning,
         setoran: current.setoran + setoranAmount,
+        setoranOngkir: current.setoranOngkir + adminFromDelivery,
+        setoranMarkup: current.setoranMarkup + markupAmount,
       });
     });
 
     return Array.from(stats.values());
   }, [filteredOrders, fees]);
-
   // Outlet revenue stats
   const outletStats = useMemo(() => {
     const stats = new Map<string, { name: string; orders: number; revenue: number; deliveryFees: number }>();
@@ -313,6 +324,8 @@ export function FinanceDashboard() {
         "Nama Driver": d.name,
         "Total Orders": d.orders,
         "Total Earnings": d.earnings,
+        "Potongan Ongkir (20%)": d.setoranOngkir,
+        "Tambahan Markup Menu": d.setoranMarkup,
         "Total Setoran": d.setoran,
       }));
       const wsDrivers = XLSX.utils.json_to_sheet(driverData);
@@ -594,9 +607,11 @@ export function FinanceDashboard() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-4 py-3 text-left font-semibold text-gray-700">Driver</th>
-                  <th className="px-4 py-3 text-right font-semibold text-gray-700">Total Orders</th>
-                  <th className="px-4 py-3 text-right font-semibold text-gray-700">Total Earnings</th>
-                  <th className="px-4 py-3 text-right font-semibold text-gray-700">Total Setoran</th>
+                  <th className="px-4 py-3 text-right font-semibold text-gray-700">Orders</th>
+                  <th className="px-4 py-3 text-right font-semibold text-gray-700">Earnings</th>
+                  <th className="px-4 py-3 text-right font-semibold text-gray-700 text-xs">Ongkir (20%)</th>
+                  <th className="px-4 py-3 text-right font-semibold text-gray-700 text-xs">Markup</th>
+                  <th className="px-4 py-3 text-right font-semibold text-gray-700">Setoran</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
@@ -607,13 +622,18 @@ export function FinanceDashboard() {
                     <td className="px-4 py-3 text-right text-green-600 font-semibold">
                       {formatCurrency(stat.earnings)}
                     </td>
+                    <td className="px-4 py-3 text-right text-gray-500 text-xs">
+                      {formatCurrency(stat.setoranOngkir)}
+                    </td>
+                    <td className="px-4 py-3 text-right text-gray-500 text-xs">
+                      {formatCurrency(stat.setoranMarkup)}
+                    </td>
                     <td className="px-4 py-3 text-right text-blue-600 font-semibold">
                       {formatCurrency(stat.setoran)}
                     </td>
                   </tr>
                 ))}
-              </tbody>
-            </table>
+              </tbody>            </table>
           </div>
         </div>
       )}
