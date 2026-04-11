@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { User, Phone, Plus, Edit2, Copy, Check, AlertCircle, Shield, Loader2, Trash2, Mail, Eye, EyeOff, Wallet, Key, CreditCard } from "lucide-react";
+import { User, Phone, Plus, Edit2, Copy, Check, AlertCircle, Shield, Loader2, Trash2, Mail, Eye, EyeOff, Wallet, Key, CreditCard, Star, MessageSquare, X } from "lucide-react";
 import { useData, Profile } from "../contexts/DataContext";
 import { generateSecurePassword } from "../utils/credentialGenerator";
 import { formatCurrency } from "../utils/financeCalculations";
@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { supabase } from "../../lib/supabase";
 
 export function DriverManagement() {
-  const { drivers, orders, addDriver, updateDriver, deactivateDriver, deleteDriver, updateDriverBalance, loadingDrivers } = useData();
+  const { drivers, orders, addDriver, updateDriver, deactivateDriver, deleteDriver, updateDriverBalance, loadingDrivers, orderRatings } = useData();
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showCredentialsModal, setShowCredentialsModal] = useState(false);
@@ -27,6 +27,14 @@ export function DriverManagement() {
   const [showNewPasswordModal, setShowNewPasswordModal] = useState(false);
   const [resetPasswordDriver, setResetPasswordDriver] = useState<Profile | null>(null);
   const [showDanaNumber, setShowDanaNumber] = useState(false);
+  const [showReviewsDriver, setShowReviewsDriver] = useState<Profile | null>(null);
+
+  const getDriverRating = (driverId: string) => {
+    const ratings = orderRatings.filter((r) => r.driver_id === driverId);
+    if (ratings.length === 0) return { avg: 0, count: 0 };
+    const sum = ratings.reduce((acc, curr) => acc + curr.driver_rating, 0);
+    return { avg: sum / ratings.length, count: ratings.length };
+  };
 
   // Store credentials per driver (email stored in profile, password shown once on creation)
   const [driverCredentials, setDriverCredentials] = useState<Record<string, { email: string; password: string }>>({});
@@ -232,6 +240,7 @@ export function DriverManagement() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {drivers.map((driver) => {
           const stats = getDriverStats(driver.id);
+          const rating = getDriverRating(driver.id);
 
           return (
             <div
@@ -278,28 +287,45 @@ export function DriverManagement() {
               </div>
 
               {/* Driver Stats */}
-              <div className="grid grid-cols-3 gap-3 mb-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
                 <div className="bg-blue-50 rounded-lg p-3">
-                  <div className="text-xs text-gray-600 mb-1">Total Order</div>
-                  <div className="text-xl font-bold text-blue-600">{stats.totalOrders}</div>
+                  <div className="text-[10px] text-gray-500 uppercase font-bold mb-1">Total Order</div>
+                  <div className="text-lg font-bold text-blue-600">{stats.totalOrders}</div>
                 </div>
                 <div className="bg-green-50 rounded-lg p-3">
-                  <div className="text-xs text-gray-600 mb-1">Selesai</div>
-                  <div className="text-xl font-bold text-green-600">{stats.completed}</div>
+                  <div className="text-[10px] text-gray-500 uppercase font-bold mb-1">Selesai</div>
+                  <div className="text-lg font-bold text-green-600">{stats.completed}</div>
+                </div>
+                <div className="bg-yellow-50 rounded-lg p-3">
+                  <div className="text-[10px] text-gray-500 uppercase font-bold mb-1">Rating</div>
+                  <div className="flex items-center gap-1">
+                    <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                    <span className="text-lg font-bold text-yellow-700">
+                      {rating.avg > 0 ? rating.avg.toFixed(1) : "-"}
+                    </span>
+                    <span className="text-[10px] text-gray-400 font-normal">({rating.count})</span>
+                  </div>
                 </div>
                 <div className={`rounded-lg p-3 ${((driver as any).balance ?? 0) < 30000 ? "bg-red-50" : "bg-purple-50"}`}>
-                  <div className="text-xs text-gray-600 mb-1">Saldo</div>
+                  <div className="text-[10px] text-gray-500 uppercase font-bold mb-1">Saldo</div>
                   <div className={`text-lg font-bold ${((driver as any).balance ?? 0) < 30000 ? "text-red-600" : "text-purple-600"}`}>
                     {formatCurrency((driver as any).balance ?? 0)}
                   </div>
                 </div>
               </div>
 
-              {/* Top Up Button */}
-              <div className="mb-4">
+              {/* Review and Top Up Buttons */}
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <button
+                  onClick={() => setShowReviewsDriver(driver)}
+                  className="flex items-center justify-center gap-2 px-3 py-2 bg-yellow-50 text-yellow-700 rounded-lg hover:bg-yellow-100 transition-colors text-xs font-bold"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  <span>Lihat Ulasan</span>
+                </button>
                 <button
                   onClick={() => { setTopUpDriver(driver); setTopUpAmount(100000); }}
-                  className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors text-sm"
+                  className="flex items-center justify-center gap-2 px-3 py-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors text-xs font-bold"
                 >
                   <Wallet className="w-4 h-4" />
                   <span>Top Up Saldo</span>
@@ -858,6 +884,61 @@ export function DriverManagement() {
             >
               Tutup
             </button>
+          </div>
+        </div>
+      )}
+      {/* Driver Reviews Modal */}
+      {showReviewsDriver && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowReviewsDriver(null)} />
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+            <div className="bg-gradient-to-r from-yellow-500 to-orange-500 p-6 text-white flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-bold">Ulasan Driver</h2>
+                <p className="text-yellow-100 text-sm">{showReviewsDriver.name}</p>
+              </div>
+              <button onClick={() => setShowReviewsDriver(null)} className="p-2 hover:bg-white/20 rounded-full">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              {orderRatings.filter(r => r.driver_id === showReviewsDriver.id).length === 0 ? (
+                <div className="text-center py-12 text-gray-500">
+                  <MessageSquare className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                  <p>Belum ada ulasan untuk driver ini</p>
+                </div>
+              ) : (
+                orderRatings
+                  .filter(r => r.driver_id === showReviewsDriver.id)
+                  .map((review) => (
+                    <div key={review.id} className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                      <div className="flex justify-between items-start mb-2">
+                        <div className="flex gap-0.5">
+                          {[1, 2, 3, 4, 5].map((s) => (
+                            <Star
+                              key={s}
+                              className={`w-3.5 h-3.5 ${
+                                s <= review.driver_rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                        <span className="text-[10px] text-gray-400">
+                          {new Date(review.created_at).toLocaleDateString("id-ID")}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-700 leading-relaxed italic">
+                        "{review.comment || "Tidak ada komentar"}"
+                      </p>
+                      <div className="mt-2 text-[10px] text-gray-400 flex items-center gap-1">
+                        <span className="font-bold">Order:</span>
+                        <span>#{review.order_id.slice(0, 8)}</span>
+                      </div>
+                    </div>
+                  ))
+              )}
+            </div>
           </div>
         </div>
       )}

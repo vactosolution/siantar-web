@@ -38,7 +38,7 @@ const PACKAGE_CATEGORIES = [
 
 export function KirimBarang() {
   const navigate = useNavigate();
-  const { addOrder, getDistance, getDeliveryFee, feeSettings, outlets, orders } = useData();
+  const { addOrder, getDistance, getDeliveryFee, feeSettings, outlets, orders, appSettings } = useData();
 
   // Sender (Pengirim) Details
   const [senderName, setSenderName] = useState("");
@@ -294,11 +294,14 @@ export function KirimBarang() {
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6A00] focus:border-transparent bg-white"
                   >
                     <option value="">Pilih desa</option>
-                    {VILLAGES.map((village) => (
-                      <option key={village} value={village}>
-                        {village}
-                      </option>
-                    ))}
+                    {VILLAGES.map((village) => {
+                      const isInactive = (appSettings.inactive_villages || []).includes(village);
+                      return (
+                        <option key={village} value={village} disabled={isInactive}>
+                          {village} {isInactive ? "(Tidak Tersedia)" : ""}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
 
@@ -365,11 +368,14 @@ export function KirimBarang() {
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6A00] focus:border-transparent bg-white"
                   >
                     <option value="">Pilih desa</option>
-                    {VILLAGES.map((village) => (
-                      <option key={village} value={village}>
-                        {village}
-                      </option>
-                    ))}
+                    {VILLAGES.map((village) => {
+                      const isInactive = (appSettings.inactive_villages || []).includes(village);
+                      return (
+                        <option key={village} value={village} disabled={isInactive}>
+                          {village} {isInactive ? "(Tidak Tersedia)" : ""}
+                        </option>
+                      );
+                    })}
                   </select>
                 </div>
 

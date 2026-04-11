@@ -92,9 +92,11 @@ export function AdminPanel() {
     loadingOutlets,
     loadingOrders,
     loadingDrivers,
+    appSettings,
+    updateAppSetting,
   } = useData();
 
-  const [activeTab, setActiveTab] = useState<"dashboard" | "orders" | "drivers" | "stores" | "finance" | "informasi" | "keuangan-driver">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "orders" | "drivers" | "stores" | "finance" | "informasi" | "keuangan-driver" | "pengaturan">("dashboard");
   const [dateFilter, setDateFilter] = useState<"today" | "yesterday" | "all" | "custom">("today");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [customStartDate, setCustomStartDate] = useState("");
@@ -245,6 +247,7 @@ export function AdminPanel() {
     { id: "stores", label: "Outlet", icon: Store },
     { id: "informasi", label: "Informasi", icon: Bell },
     { id: "keuangan-driver", label: "Keuangan Driver", icon: Wallet },
+    { id: "pengaturan", label: "Pengaturan", icon: Settings },
   ];
 
   const handleAddOutlet = () => {
@@ -955,6 +958,108 @@ export function AdminPanel() {
             </Tabs>
           )}
           {activeTab === "keuangan-driver" && <DriverFinanceManagement />}
+          {activeTab === "pengaturan" && (
+            <div className="space-y-6">
+              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+                <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                  <Settings className="w-6 h-6 text-orange-500" />
+                  Pengaturan Operasional
+                </h2>
+
+                {/* Global Service Toggle */}
+                <div className="space-y-6 pb-8 border-b border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="font-semibold text-gray-900">Status Layanan (Global)</h3>
+                      <p className="text-sm text-gray-600">Buka atau tutup seluruh layanan SiAnter</p>
+                    </div>
+                    <button
+                      onClick={() => updateAppSetting("is_service_open", !appSettings.is_service_open)}
+                      className={`relative inline-flex h-7 w-14 items-center rounded-full transition-colors focus:outline-none ${
+                        appSettings.is_service_open ? "bg-green-500" : "bg-gray-300"
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${
+                          appSettings.is_service_open ? "translate-x-8" : "translate-x-1"
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  {!appSettings.is_service_open && (
+                    <div className="space-y-4 bg-orange-50 p-4 rounded-lg border border-orange-100">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Pesan Layanan Tutup</label>
+                        <textarea
+                          value={appSettings.service_closed_message || ""}
+                          onChange={(e) => updateAppSetting("service_closed_message", e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                          rows={3}
+                          placeholder="Pesan yang tampil saat layanan tutup..."
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Jam Operasional (Teks)</label>
+                        <input
+                          type="text"
+                          value={appSettings.service_hours || ""}
+                          onChange={(e) => updateAppSetting("service_hours", e.target.value)}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                          placeholder="Contoh: Buka kembali pukul 10.00 – 20.00"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Village Availability Toggle */}
+                <div className="pt-6">
+                  <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                    <MapPin className="w-5 h-5 text-blue-500" />
+                    Ketersediaan Lokasi Pengantaran
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {VILLAGE_GROUPS.map((group) => (
+                      <div key={group.label} className="space-y-3">
+                        <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">{group.label}</div>
+                        <div className="space-y-2">
+                          {group.villages.map((village) => {
+                            const isInactive = (appSettings.inactive_villages || []).includes(village);
+                            return (
+                              <div key={village} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                <span className={`text-sm font-medium ${isInactive ? "text-gray-400 line-through" : "text-gray-700"}`}>
+                                  {village}
+                                </span>
+                                <button
+                                  onClick={() => {
+                                    const current = appSettings.inactive_villages || [];
+                                    const next = isInactive
+                                      ? current.filter((v: string) => v !== village)
+                                      : [...current, village];
+                                    updateAppSetting("inactive_villages", next);
+                                  }}
+                                  className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors focus:outline-none ${
+                                    !isInactive ? "bg-blue-500" : "bg-gray-300"
+                                  }`}
+                                >
+                                  <span
+                                    className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                                      !isInactive ? "translate-x-5.5" : "translate-x-1"
+                                    }`}
+                                  />
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
           {activeTab === "stores" && (
             <div>
               <div className="flex justify-between items-center mb-6">

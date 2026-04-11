@@ -39,7 +39,7 @@ const SAME_VILLAGE_FLAT_FEE = 7000;
 
 export function Checkout() {
   const { items, subtotal: cartSubtotal, clearCart } = useCart();
-  const { addOrder, outlets, getDistance, getDeliveryFee, feeSettings, orders } = useData();
+  const { addOrder, outlets, getDistance, getDeliveryFee, feeSettings, orders, appSettings } = useData();
   const { customerPhone, username: customerName } = useAuth();
   const navigate = useNavigate();
   const [name, setName] = useState("");
@@ -305,11 +305,14 @@ export function Checkout() {
                     <option value="">-- Pilih Desa --</option>
                     {VILLAGE_GROUPS.map((group) => (
                       <optgroup key={group.label} label={group.label}>
-                        {group.villages.map((v) => (
-                          <option key={v} value={v}>
-                            {v}
-                          </option>
-                        ))}
+                        {group.villages.map((v) => {
+                          const isInactive = (appSettings.inactive_villages || []).includes(v);
+                          return (
+                            <option key={v} value={v} disabled={isInactive}>
+                              {v} {isInactive ? "(Tidak Tersedia)" : ""}
+                            </option>
+                          );
+                        })}
                       </optgroup>
                     ))}
                   </select>

@@ -8,6 +8,7 @@ import { motion } from "motion/react";
 import { Logo } from "../../components/Logo";
 import { formatCurrency } from "../../utils/financeCalculations";
 import { OrderItemsDetail } from "../../components/OrderItemsDetail";
+import { OrderRatingModal } from "../../components/OrderRatingModal";
 
 const orderStatuses: Array<{ id: string; label: string; icon: typeof Clock; description: string }> = [
   { id: "pending", label: "Menunggu Validasi", icon: Clock, description: "Pesanan sedang divalidasi oleh admin" },
@@ -23,13 +24,26 @@ const orderStatuses: Array<{ id: string; label: string; icon: typeof Clock; desc
 export function OrderTracking() {
   const { orderId } = useParams<{ orderId: string }>();
   const navigate = useNavigate();
-  const { orders, drivers, refreshOrders, loadingOrders } = useData();
+  const { orders, drivers, refreshOrders, loadingOrders, orderRatings } = useData();
   const { customerPhone } = useAuth();
   const [previousStatus, setPreviousStatus] = useState<string | null>(null);
   const [driverLocation, setDriverLocation] = useState(0);
   const [isOwner, setIsOwner] = useState<boolean | null>(null);
+  const [showRatingModal, setShowRatingModal] = useState(false);
 
   const currentOrder = orders.find(o => o.id === orderId);
+
+  // Auto-show rating modal when completed
+  useEffect(() => {
+    if (currentOrder?.status === "completed") {
+      const alreadyRated = orderRatings.some(r => r.order_id === currentOrder.id);
+      if (!alreadyRated) {
+        // Delay a bit for better UX
+        const timer = setTimeout(() => setShowRatingModal(true), 1500);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [currentOrder?.status, orderRatings, currentOrder?.id]);
 
   // Validate ownership - wait for auth to be ready before deciding
   useEffect(() => {
@@ -564,6 +578,16 @@ export function OrderTracking() {
           </div>
         </motion.div>
       </div>
+
+      {showRatingModal && currentOrder && (
+        <OrderRatingModal
+          orderId={currentOrder.id}
+          driverId={currentOrder.driver_id}
+          outletId={currentOrder.outlet_id}
+          customerPhone={currentOrder.customer_phone}
+          onClose={() => setShowRatingModal(false)}
+        />
+      )}
     </div>
   );
 }

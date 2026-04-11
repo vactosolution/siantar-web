@@ -25,6 +25,18 @@ export type Profile = Tables<"profiles"> & { dana_number?: string };
 export type PaymentAccount = Tables<"payment_accounts">;
 export type FeeSetting = Tables<"fee_settings">;
 export type DistanceMatrix = Tables<"distance_matrix">;
+export type AppSetting = { key: string; value: any };
+export type OrderRating = {
+  id: string;
+  order_id: string;
+  customer_phone: string;
+  driver_id: string | null;
+  outlet_id: string | null;
+  driver_rating: number;
+  outlet_rating: number;
+  comment: string | null;
+  created_at: string;
+};
 
 // Extended product with variants and extras
 export interface ProductWithDetails extends Product {
@@ -103,6 +115,14 @@ interface DataContextType {
 
   orderItemsCache: Record<string, OrderItemWithProduct[]>;
   fetchOrderItems: (orderId: string) => Promise<OrderItemWithProduct[]>;
+
+  appSettings: Record<string, any>;
+  updateAppSetting: (key: string, value: any) => Promise<void>;
+  refreshAppSettings: () => Promise<void>;
+
+  orderRatings: OrderRating[];
+  submitOrderRating: (rating: Omit<OrderRating, "id" | "created_at">) => Promise<void>;
+  refreshOrderRatings: () => Promise<void>;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -116,6 +136,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [feeSettings, setFeeSettings] = useState<Record<string, number>>({});
   const [distanceMatrix, setDistanceMatrix] = useState<DistanceMatrix[]>([]);
   const [orderItemsCache, setOrderItemsCache] = useState<Record<string, OrderItemWithProduct[]>>({});
+  const [appSettings, setAppSettings] = useState<Record<string, any>>({});
+  const [orderRatings, setOrderRatings] = useState<OrderRating[]>([]);
 
   const [loadingOutlets, setLoadingOutlets] = useState(true);
   const [loadingProducts, setLoadingProducts] = useState(true);
@@ -189,6 +211,22 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setDistanceMatrix(data || []);
   }, []);
 
+  // Fetch app settings
+  const refreshAppSettings = useCallback(async () => {
+    const { data } = await (supabase.from as any)("app_settings").select("*");
+    const settings: Record<string, any> = {};
+    (data || []).forEach((s: any) => {
+      settings[s.key] = s.value;
+    });
+    setAppSettings(settings);
+  }, []);
+
+  // Fetch order ratings
+  const refreshOrderRatings = useCallback(async () => {
+    const { data } = await (supabase.from as any)("order_ratings").select("*").order("created_at", { ascending: false });
+    setOrderRatings((data as any) || []);
+  }, []);
+
   // Initial load
   useEffect(() => {
     refreshOutlets();
@@ -198,11 +236,14 @@ export function DataProvider({ children }: { children: ReactNode }) {
     refreshPaymentAccounts();
     refreshFeeSettings();
     refreshDistanceMatrix();
+    refreshAppSettings();
+    refreshOrderRatings();
 
     // Realtime subscriptions (WebSocket)
     const ordersChannel = subscribeToTable('orders', () => refreshOrders());
     const productsChannel = subscribeToTable('products', () => refreshProducts());
     const outletsChannel = subscribeToTable('outlets', () => refreshOutlets());
+    const appSettingsChannel = subscribeToTable('app_settings', () => refreshAppSettings());
 
     // Profiles: incremental update for driver balance/name changes
     const profilesChannel = subscribeToTable('profiles', (payload) => {
@@ -232,6 +273,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       unsubscribe(productsChannel);
       unsubscribe(outletsChannel);
       unsubscribe(profilesChannel);
+      unsubscribe(appSettingsChannel);
       if (pollingInterval) clearInterval(pollingInterval);
     };
   }, []);
@@ -526,6 +568,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
     await refreshDrivers();
   }, [refreshOrders, refreshDrivers]);
 
+  // Update global app setting
+  const updateAppSetting = useCallback(async (key: string, value: any) => {
+    const { error } = await (supabase.from as any)("app_settings").upsert({ key, value });
+    if (error) throw error;
+    await refreshAppSettings();
+  }, [refreshAppSettings]);
+
+  // Submit order rating
+  const submitOrderRating = useCallback(async (rating: Omit<OrderRating, "id" | "created_at">) => {
+    const { error } = await (supabase.from as any)("order_ratings").insert(rating);
+    if (error) throw error;
+    await refreshOrderRatings();
+  }, [refreshOrderRatings]);
+
   // Fetch order items for a specific order (lazy-load with cache)
   const fetchOrderItems = useCallback(async (orderId: string): Promise<OrderItemWithProduct[]> => {
     // Return cached data if available
@@ -604,6 +660,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
         completeOrderWithDeduction,
         orderItemsCache,
         fetchOrderItems,
+        appSettings,
+        updateAppSetting,
+        refreshAppSettings,
+        orderRatings,
+        submitOrderRating,
+        refreshOrderRatings,
       }}
     >
       {children}

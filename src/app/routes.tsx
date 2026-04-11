@@ -1,4 +1,4 @@
-import { createHashRouter, Navigate, Outlet } from "react-router";
+import { createHashRouter, Navigate, Outlet, useLocation } from "react-router";
 import { CustomerLayout } from "./layouts/CustomerLayout";
 import { Home } from "./pages/customer/Home";
 import { StoreDetail } from "./pages/customer/StoreDetail";
@@ -17,11 +17,30 @@ import { LoginAdmin } from "./pages/auth/LoginAdmin";
 import { LoginDriver } from "./pages/auth/LoginDriver";
 import { ServiceSelection } from "./pages/customer/ServiceSelection";
 import { KirimBarang } from "./pages/customer/KirimBarang";
-import { DataProvider } from "./contexts/DataContext";
+import { ServiceClosed } from "./pages/customer/ServiceClosed";
+import { DataProvider, useData } from "./contexts/DataContext";
 import { CartProvider } from "./contexts/CartContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import { NotificationProvider } from "./contexts/NotificationContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+
+function ServiceStatusWrapper() {
+  const { appSettings } = useData();
+  const { pathname } = useLocation();
+
+  // Check if it's a customer route (starts with /home, /service-selection, or is /)
+  const isCustomerRoute = 
+    pathname.includes('/home') || 
+    pathname.includes('/service-selection') || 
+    pathname === '/' || 
+    pathname.includes('/login-customer');
+
+  if (appSettings.is_service_open === false && isCustomerRoute && !pathname.includes('/closed')) {
+    return <Navigate to="/closed" replace />;
+  }
+
+  return <Outlet />;
+}
 
 function RootLayout() {
   return (
@@ -41,25 +60,31 @@ export const router = createHashRouter([
   {
     element: <RootLayout />,
     children: [
-      { path: "/", element: <Splash /> },
-      { path: "/service-selection", element: <ServiceSelection /> },
-      { path: "/login-customer", element: <LoginCustomer /> },
-      { path: "/login-admin", element: <LoginAdmin /> },
-      { path: "/login-driver", element: <LoginDriver /> },
       {
-        path: "/home",
-        element: <CustomerLayout />,
+        element: <ServiceStatusWrapper />,
         children: [
-          { index: true, element: <Home /> },
-          { path: "store/:storeId", element: <StoreDetail /> },
-          { path: "cart", element: <Cart /> },
-          { path: "checkout", element: <Checkout /> },
-          { path: "payment/:orderId", element: <PaymentInstruction /> },
-          { path: "tracking/:orderId", element: <OrderTracking /> },
-          { path: "history", element: <History /> },
-          { path: "kirim-barang", element: <KirimBarang /> },
+          { path: "/", element: <Splash /> },
+          { path: "/service-selection", element: <ServiceSelection /> },
+          { path: "/login-customer", element: <LoginCustomer /> },
+          {
+            path: "/home",
+            element: <CustomerLayout />,
+            children: [
+              { index: true, element: <Home /> },
+              { path: "store/:storeId", element: <StoreDetail /> },
+              { path: "cart", element: <Cart /> },
+              { path: "checkout", element: <Checkout /> },
+              { path: "payment/:orderId", element: <PaymentInstruction /> },
+              { path: "tracking/:orderId", element: <OrderTracking /> },
+              { path: "history", element: <History /> },
+              { path: "kirim-barang", element: <KirimBarang /> },
+            ],
+          },
         ],
       },
+      { path: "/closed", element: <ServiceClosed /> },
+      { path: "/login-admin", element: <LoginAdmin /> },
+      { path: "/login-driver", element: <LoginDriver /> },
       { path: "/admin", element: <AdminPanel /> },
       { path: "/admin/outlet/:outletId/menu", element: <OutletMenuManagement /> },
       { path: "/admin/settings", element: <Settings /> },

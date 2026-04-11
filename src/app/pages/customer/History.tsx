@@ -5,13 +5,15 @@ import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { formatCurrency } from "../../utils/financeCalculations";
 import { OrderItemsDetail } from "../../components/OrderItemsDetail";
+import { OrderRatingModal } from "../../components/OrderRatingModal";
 import { motion } from "motion/react";
 
 export function History() {
-  const { orders, loadingOrders } = useData();
+  const { orders, loadingOrders, orderRatings } = useData();
   const { customerPhone } = useAuth();
   const navigate = useNavigate();
   const [showOrderItemsDetail, setShowOrderItemsDetail] = useState<{ orderId: string; outletName: string } | null>(null);
+  const [ratingOrder, setRatingOrder] = useState<any>(null);
 
   const customerName = localStorage.getItem("sianter_customer_name") || "";
 
@@ -180,29 +182,46 @@ export function History() {
                   </div>
                 </div>
 
-                <div className="mt-4 grid grid-cols-3 gap-3">
+                <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <button
                     onClick={() => setShowOrderItemsDetail({ orderId: order.id, outletName: order.outlet_name })}
-                    className="py-2 text-blue-600 font-medium border-2 border-blue-400 hover:bg-blue-50 rounded-lg transition-colors flex items-center justify-center gap-1 text-sm"
+                    className="py-2 text-blue-600 font-medium border-2 border-blue-400 hover:bg-blue-50 rounded-lg transition-colors flex items-center justify-center gap-1 text-xs"
                   >
                     <ShoppingBag className="w-3.5 h-3.5" />
                     Detail
                   </button>
+                  
                   {order.status !== "cancelled" ? (
                     <button
                       onClick={() => navigate(`/home/tracking/${order.id}`)}
-                      className="py-2 text-orange-600 font-medium border-2 border-orange-500 hover:bg-orange-50 rounded-lg transition-colors"
+                      className="py-2 text-orange-600 font-medium border-2 border-orange-500 hover:bg-orange-50 rounded-lg transition-colors text-xs"
                     >
                       Lacak
                     </button>
                   ) : (
-                    <div className="py-2 text-center text-xs text-gray-400 font-medium">
-                      Dibatalkan
+                    <div className="py-2 text-center text-[10px] text-gray-400 font-medium border-2 border-gray-200 rounded-lg flex items-center justify-center uppercase tracking-tighter">
+                      Batal
                     </div>
                   )}
-                  <button onClick={() => navigate(`/home/store/${order.outlet_id}`)} className="py-2 bg-orange-500 text-white font-medium hover:bg-orange-600 rounded-lg transition-colors">
-                    Pesan Lagi
-                  </button>
+
+                  {order.status === "completed" && !orderRatings.some(r => r.order_id === order.id) ? (
+                    <button
+                      onClick={() => setRatingOrder(order)}
+                      className="py-2 bg-yellow-500 text-white font-medium hover:bg-yellow-600 rounded-lg transition-colors text-xs"
+                    >
+                      Beri Penilaian
+                    </button>
+                  ) : (
+                    <button onClick={() => navigate(`/home/store/${order.outlet_id}`)} className="py-2 bg-orange-500 text-white font-medium hover:bg-orange-600 rounded-lg transition-colors text-xs">
+                      Pesan Lagi
+                    </button>
+                  )}
+
+                  {order.status === "completed" && orderRatings.some(r => r.order_id === order.id) && (
+                    <button onClick={() => navigate(`/home/store/${order.outlet_id}`)} className="py-2 bg-orange-500 text-white font-medium hover:bg-orange-600 rounded-lg transition-colors text-xs">
+                      Pesan Lagi
+                    </button>
+                  )}
                 </div>
               </motion.div>
             ))}
@@ -217,6 +236,17 @@ export function History() {
           outletName={showOrderItemsDetail.outletName}
           mode="modal"
           onClose={() => setShowOrderItemsDetail(null)}
+        />
+      )}
+
+      {/* Order Rating Modal */}
+      {ratingOrder && (
+        <OrderRatingModal
+          orderId={ratingOrder.id}
+          driverId={ratingOrder.driver_id}
+          outletId={ratingOrder.outlet_id}
+          customerPhone={ratingOrder.customer_phone}
+          onClose={() => setRatingOrder(null)}
         />
       )}
     </div>
