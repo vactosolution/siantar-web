@@ -111,6 +111,7 @@ interface DataContextType {
   updateDriverBalance: (driverId: string, amount: number) => Promise<void>;
   driverRejectOrder: (orderId: string, driverId: string) => Promise<void>;
   toggleDriverOnline: (driverId: string) => Promise<boolean>;
+  updateDriverLocation: (driverId: string, latitude: number, longitude: number) => Promise<void>;
   completeOrderWithDeduction: (orderId: string, driverId: string) => Promise<void>;
 
   orderItemsCache: Record<string, OrderItemWithProduct[]>;
@@ -557,6 +558,24 @@ export function DataProvider({ children }: { children: ReactNode }) {
     return data as boolean;
   }, [refreshDrivers]);
 
+  // Update driver GPS location (Fitur #55)
+  const updateDriverLocation = useCallback(async (driverIdParam: string, latitude: number, longitude: number) => {
+    const { error } = await supabase
+      .from("profiles")
+      .update({ 
+        latitude, 
+        longitude, 
+        last_location_update: new Date().toISOString() 
+      })
+      .eq("id", driverIdParam);
+    if (error) {
+      console.error("updateDriverLocation error:", error);
+      return;
+    }
+    // Update local state incrementally to avoid full refresh flicker
+    setDrivers(prev => prev.map(d => d.id === driverIdParam ? { ...d, latitude, longitude, last_location_update: new Date().toISOString() } : d));
+  }, []);
+
   // Complete order with automatic bagi hasil deduction from driver balance
   const completeOrderWithDeduction = useCallback(async (orderId: string, driverIdParam: string) => {
     const { error } = await supabase.rpc('complete_order_with_deduction', {
@@ -620,6 +639,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         addOutlet,
         updateOutlet,
         deleteOutlet,
+        restoreOutlet,
         toggleOutletOpen,
         loadingOutlets,
         products,
@@ -657,6 +677,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
         updateDriverBalance,
         driverRejectOrder,
         toggleDriverOnline,
+        updateDriverLocation,
         completeOrderWithDeduction,
         orderItemsCache,
         fetchOrderItems,
@@ -669,6 +690,18 @@ export function DataProvider({ children }: { children: ReactNode }) {
       }}
     >
       {children}
+    </DataContext.Provider>
+  );
+}
+
+export function useData() {
+  const context = useContext(DataContext);
+  if (!context) {
+    throw new Error("useData must be used within DataProvider");
+  }
+  return context;
+}
+ {children}
     </DataContext.Provider>
   );
 }

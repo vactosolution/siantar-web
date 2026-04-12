@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router";
-import { ArrowLeft, MapPin } from "lucide-react";
+import { ArrowLeft, MapPin, Loader2, Navigation } from "lucide-react";
 import { toast } from "sonner";
 import { useCart } from "../../contexts/CartContext";
-import { useData, Village } from "../../contexts/DataContext";
+import { useData } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
 import {
   calculateOrderFinance,
@@ -14,44 +14,20 @@ import {
 } from "../../utils/financeCalculations";
 import type { TablesInsert } from "../../../lib/database.types";
 
-const VILLAGE_GROUPS = [
-  {
-    label: "Wilayah 1 (Dekat)",
-    villages: [
-      "Desa Bukit Sungkai",
-      "Desa Sekuningan Baru",
-      "Desa Balai Riam (Pusat Kecamatan)",
-      "Desa Bangun Jaya",
-    ] as Village[],
-  },
-  {
-    label: "Wilayah 2 (Jauh)",
-    villages: [
-      "Desa Lupu Peruca",
-      "Desa Natai Kondang",
-      "Desa Ajang",
-    ] as Village[],
-  },
-];
-
-
-const SAME_VILLAGE_FLAT_FEE = 7000;
-
 export function Checkout() {
   const { items, subtotal: cartSubtotal, clearCart } = useCart();
-  const { addOrder, outlets, getDistance, getDeliveryFee, feeSettings, orders, appSettings } = useData();
+  const { addOrder, outlets, feeSettings, orders } = useData();
   const { customerPhone, username: customerName } = useAuth();
   const navigate = useNavigate();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [village, setVillage] = useState<Village | "">("");
   const [address, setAddress] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"cod" | "transfer-bri" | "transfer-dana">("cod");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
 
-  // GPS State (Fitur #52)
+  // GPS State (Fitur #55)
   const [customerCoords, setCustomerCoords] = useState<{ lat: number; lng: number } | null>(null);
-  const [isGPSMode, setIsGPSMode] = useState(false);
   const [gpsDistance, setGpsDistance] = useState(0);
 
   // Pre-fill customer info from auth session
@@ -70,25 +46,6 @@ export function Checkout() {
   // Get outlet from first item (assuming all items from same store)
   const outlet = outlets.find(o => o.id === items[0]?.outletId);
 
-  // Validate single-store order (all items must be from same store)
-  const uniqueStores = new Set(items.map(item => item.outletId));
-  const isMultiOutlet = uniqueStores.size > 1;
-
-  // If multi-outlet, get all outlets
-  const orderOutlets = isMultiOutlet
-    ? outlets.filter(o => uniqueStores.has(o.id))
-    : outlet ? [outlet] : [];
-
-  // Calculate distance and delivery fee from matrix
-  const rawDistance = village && outlet ? getDistance(village, outlet.village) : 0;
-  const isSameVillage = village !== "" && outlet && village === outlet.village;
-  const deliveryFeeFromMatrix = isSameVillage
-    ? SAME_VILLAGE_FLAT_FEE
-    : (village && outlet ? getDeliveryFee(village, outlet.village) : 0);
-  
-  // Use GPS distance if available, otherwise fallback to matrix (Fitur #52)
-  const distance = isGPSMode ? gpsDistance : rawDistance;
-
   // Build FeeSettings from context data
   const fees = {
     cost_per_km: feeSettings.cost_per_km ?? getDefaultFeeSettings().cost_per_km,
@@ -102,9 +59,12 @@ export function Checkout() {
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
   const isMarkupEnabled = outlet?.markup_enabled !== false;
   const markupAmount = isMarkupEnabled ? 1000 * totalItems : 0;
-  const finance = calculateOrderFinance(cartSubtotal, distance, markupAmount, fees, deliveryFeeFromMatrix, isGPSMode);
+  
+  // distance is 0 if GPS not yet obtained
+  const distance = customerCoords ? gpsDistance : 0;
+  const finance = calculateOrderFinance(cartSubtotal, distance, markupAmount, fees, 0, !!customerCoords);
 
-  // Handle GPS Location (Fitur #52)
+  // Handle GPS Location (Fitur #55)
   const handleGetLocation = () => {
     if (!navigator.geolocation) {
       toast.error("Geolocation tidak didukung browser Anda");
@@ -112,11 +72,13 @@ export function Checkout() {
     }
 
     if (!outlet?.latitude || !outlet?.longitude) {
-      toast.error("Outlet belum memiliki koordinat GPS. Gunakan tarif per desa.");
+      toast.error("Outlet belum memiliki koordinat GPS. Hubungi Admin.");
       return;
     }
 
+    setIsLocating(true);
     toast.info("Mengambil lokasi Anda...");
+    
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         const lat = pos.coords.latitude;
@@ -126,19 +88,26 @@ export function Checkout() {
         // Calculate distance to outlet
         const dist = calculateDistance(lat, lng, Number(outlet.latitude), Number(outlet.longitude));
         setGpsDistance(dist);
-        setIsGPSMode(true);
+        setIsLocating(false);
         toast.success(`Lokasi terdeteksi! Jarak: ${dist} KM`);
       },
       (err) => {
+        console.error("Geolocation error:", err);
         toast.error("Gagal mengambil lokasi: " + err.message);
-        setIsGPSMode(false);
-      }
+        setIsLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
     );
   };
 
   const handleOrder = async () => {
-    if (!name || !phone || !village || !address) {
-      toast.error("Mohon lengkapi semua data");
+    if (!name || !phone || !address) {
+      toast.error("Mohon lengkapi data pemesan");
+      return;
+    }
+
+    if (!customerCoords) {
+      toast.error("Mohon klik tombol 'Gunakan Lokasi Saya' untuk menghitung ongkir");
       return;
     }
 
@@ -147,11 +116,14 @@ export function Checkout() {
       return;
     }
 
+    if (outlet.is_active === false) {
+      toast.error("Mohon maaf, outlet ini sedang tidak aktif/dihapus.");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      // Generate unique 3-digit payment code for transfer payments
-      // Collect existing codes from today's orders to avoid duplicates
       const today = new Date().toDateString();
       const todayOrderCodes = orders
         .filter(o => o.unique_payment_code && new Date(o.created_at).toDateString() === today)
@@ -165,15 +137,14 @@ export function Checkout() {
         ? finance.total + uniquePaymentCode
         : finance.total;
 
-      // Determine payment provider
       const paymentProvider = paymentMethod === "transfer-bri" ? "BRI" : paymentMethod === "transfer-dana" ? "DANA" : null;
 
-      // Build order data with snake_case fields
+      // Build order data
       const orderData: TablesInsert<"orders"> = {
         id: crypto.randomUUID(),
         customer_name: name,
         customer_phone: phone,
-        customer_village: village,
+        customer_village: "Lokasi GPS", // Hardcoded as village selection is removed
         address,
         outlet_id: outlet.id,
         outlet_name: outlet.name,
@@ -181,7 +152,7 @@ export function Checkout() {
         distance,
         charged_distance: finance.chargedDistance,
         delivery_fee: finance.deliveryFee,
-        service_fee: markupAmount, // Storing item markup in service_fee for backward compat
+        service_fee: markupAmount,
         admin_fee: finance.adminFee,
         total: finance.total,
         payment_method: paymentMethod === "cod" ? "cod" : "transfer",
@@ -191,13 +162,12 @@ export function Checkout() {
         payment_status: "pending",
         status: "pending",
         is_manual_order: false,
-        is_delivery_service: true,
-        customer_latitude: customerCoords?.lat || null,
-        customer_longitude: customerCoords?.lng || null,
+        is_delivery_service: false,
+        customer_latitude: customerCoords.lat,
+        customer_longitude: customerCoords.lng,
         zone: finance.zone || null,
       };
 
-      // Build order items array
       const orderItems: TablesInsert<"order_items">[] = items.map(item => ({
         order_id: orderData.id!,
         product_id: item.productId || null,
@@ -209,13 +179,9 @@ export function Checkout() {
         selected_extras: (item.selectedExtras || []).map(e => e.name),
       }));
 
-      console.log("Checkout - Order items being sent:", JSON.stringify(orderItems, null, 2));
-
       const orderId = await addOrder(orderData, orderItems);
-
       clearCart();
 
-      // Redirect based on payment method
       if (paymentMethod === "cod") {
         navigate(`/home/tracking/${orderId}`);
       } else {
@@ -223,255 +189,200 @@ export function Checkout() {
       }
     } catch (error: any) {
       console.error("Failed to create order:", error);
-      const errorMessage = error?.message || "Gagal membuat pesanan. Silakan coba lagi.";
-      toast.error(`Error: ${errorMessage}`);
+      toast.error(`Error: ${error?.message || "Gagal membuat pesanan"}`);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  if (items.length === 0) {
-    return null;
-  }
-
   return (
-    <div className="pb-20 md:pb-8">
+    <div className="pb-20 md:pb-8 bg-gray-50 min-h-screen">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <button
           onClick={() => navigate("/home/cart")}
           className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors"
         >
           <ArrowLeft className="w-5 h-5" />
-          <span>Kembali</span>
+          <span>Kembali ke Keranjang</span>
         </button>
 
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Checkout</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">Checkout</h1>
 
-        <div className="grid lg:grid-cols-2 gap-6">
+        <div className="grid lg:grid-cols-2 gap-8">
           {/* Left Column - Form */}
           <div className="space-y-6">
             {/* Customer Info */}
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="font-semibold text-gray-900 mb-4">
-                Informasi Pemesan
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
+                <Navigation className="w-5 h-5 text-orange-500" />
+                Informasi Pengiriman
               </h2>
-              <div className="space-y-4">
+              
+              <div className="space-y-5">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
                     Nama Lengkap
                   </label>
                   <input
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="Masukkan nama lengkap"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    placeholder="Nama penerima pesanan"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all outline-none"
                   />
                 </div>
+                
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Nomor Telepon
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Nomor Telepon (WhatsApp)
                   </label>
                   <input
                     type="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="Contoh: 08123456789"
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all outline-none"
                   />
                 </div>
+
                 <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Pilih Desa <span className="text-red-500">*</span>
-                    </label>
-                    <button
-                      type="button"
-                      onClick={handleGetLocation}
-                      className="text-xs flex items-center gap-1 text-orange-600 hover:text-orange-700 font-medium"
-                    >
-                      <MapPin className="w-3 h-3" />
-                      <span>📍 Gunakan Lokasi Saya</span>
-                    </button>
-                  </div>
-                  <select
-                    value={village}
-                    onChange={(e) => {
-                      setVillage(e.target.value as Village);
-                      setIsGPSMode(false); // Disable GPS mode if village is changed manually
-                    }}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Lokasi Presisi <span className="text-red-500">*</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleGetLocation}
+                    disabled={isLocating}
+                    className={`w-full flex items-center justify-center gap-2 py-4 rounded-xl border-2 transition-all font-bold ${
+                      customerCoords 
+                        ? "bg-green-50 border-green-500 text-green-700" 
+                        : "bg-orange-50 border-orange-200 text-orange-600 hover:bg-orange-100"
+                    }`}
                   >
-                    <option value="">-- Pilih Desa --</option>
-                    {VILLAGE_GROUPS.map((group) => (
-                      <optgroup key={group.label} label={group.label}>
-                        {group.villages.map((v) => {
-                          const isInactive = (appSettings.inactive_villages || []).includes(v);
-                          return (
-                            <option key={v} value={v} disabled={isInactive}>
-                              {v} {isInactive ? "(Tidak Tersedia)" : ""}
-                            </option>
-                          );
-                        })}
-                      </optgroup>
-                    ))}
-                  </select>
+                    {isLocating ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <MapPin className="w-5 h-5" />
+                    )}
+                    {customerCoords ? "Lokasi Berhasil Diambil" : "📍 Gunakan Lokasi Saya"}
+                  </button>
+                  <p className="text-[11px] text-gray-500 mt-2 italic text-center">
+                    * Wajib klik tombol di atas agar kurir tahu posisi Anda & ongkir terhitung otomatis.
+                  </p>
                 </div>
+
+                {customerCoords && (
+                  <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 animate-in fade-in slide-in-from-top-2">
+                    <div className="flex items-center justify-between text-xs text-blue-700 font-bold uppercase tracking-wider mb-3">
+                      <span>Rincian Jarak & Zona</span>
+                      <span className="px-2 py-0.5 bg-blue-100 rounded-full">GPS Aktif</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="bg-white p-3 rounded-lg shadow-sm text-center">
+                        <div className="text-[10px] text-gray-400 font-medium mb-1">JARAK</div>
+                        <div className="text-sm font-bold text-gray-900">{gpsDistance} KM</div>
+                      </div>
+                      <div className="bg-white p-3 rounded-lg shadow-sm text-center">
+                        <div className="text-[10px] text-gray-400 font-medium mb-1">ZONA</div>
+                        <div className="text-sm font-bold text-gray-900">{finance.zone}</div>
+                      </div>
+                      <div className="bg-white p-3 rounded-lg shadow-sm text-center border-l-4 border-orange-400">
+                        <div className="text-[10px] text-gray-400 font-medium mb-1">ONGKIR</div>
+                        <div className="text-sm font-bold text-orange-600">{formatCurrency(finance.deliveryFee)}</div>
+                      </div>
+                    </div>
+                    <div className="mt-3 text-[10px] text-blue-600/70 text-center leading-relaxed">
+                      Perhitungan: Biaya Zona {finance.zone} ({formatCurrency(finance.zoneFee || 0)}) + Jarak ({gpsDistance} km x {formatCurrency(fees.cost_per_km)})
+                    </div>
+                  </div>
+                )}
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Alamat Lengkap
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Alamat Lengkap & Patokan
                   </label>
                   <textarea
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
-                    placeholder="Masukkan alamat lengkap dengan patokan"
+                    placeholder="Contoh: Rumah cat biru depan Masjid Al-Ikhlas"
                     rows={3}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none"
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all outline-none resize-none"
                   />
                 </div>
-                
-                {isGPSMode ? (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                    <div className="flex items-center gap-2 text-green-800 font-semibold mb-1 text-sm">
-                      <MapPin className="w-4 h-4" />
-                      Lokasi Terdeteksi (Otomatis)
-                    </div>
-                    <div className="grid grid-cols-3 gap-2 text-xs">
-                      <div className="bg-white/50 p-2 rounded border border-green-100">
-                        <div className="text-gray-500">Jarak</div>
-                        <div className="font-bold">{distance} KM</div>
-                      </div>
-                      <div className="bg-white/50 p-2 rounded border border-green-100">
-                        <div className="text-gray-500">Zona</div>
-                        <div className="font-bold">{finance.zone}</div>
-                      </div>
-                      <div className="bg-white/50 p-2 rounded border border-green-100">
-                        <div className="text-gray-500">Ongkir</div>
-                        <div className="font-bold text-orange-600">{formatCurrency(finance.deliveryFee)}</div>
-                      </div>
-                    </div>
-                    <p className="text-[10px] text-green-700 mt-2">
-                      * Tarif: Biaya Zona ({formatCurrency(finance.zoneFee || 0)}) + Jarak ({distance} km x {formatCurrency(fees.cost_per_km)})
-                    </p>
-                  </div>
-                ) : distance > 0 && (
-                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                    <p className="text-sm text-orange-800">
-                      <MapPin className="w-4 h-4 inline mr-1" />
-                      {isSameVillage
-                        ? `Ongkir sesama desa: ${formatCurrency(SAME_VILLAGE_FLAT_FEE)}`
-                        : `Biaya pengiriman dihitung Rp ${fees.cost_per_km.toLocaleString("id-ID")}/km`
-                      }
-                    </p>
-                  </div>
-                )}
               </div>
             </div>
 
             {/* Payment Method */}
-            <div className="bg-white rounded-xl shadow-sm p-6">
-              <h2 className="font-semibold text-gray-900 mb-4">
-                Metode Pembayaran
-              </h2>
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-6">Metode Pembayaran</h2>
               <div className="space-y-3">
-                <label className="flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                  <input
-                    type="radio"
-                    name="payment"
-                    value="cod"
-                    checked={paymentMethod === "cod"}
-                    onChange={(e) => setPaymentMethod(e.target.value as "cod")}
-                    className="w-4 h-4 text-orange-500 focus:ring-orange-500"
-                  />
-                  <div>
-                    <div className="font-medium text-gray-900">
-                      Cash on Delivery (COD)
+                {[
+                  { id: "cod", label: "Cash on Delivery (COD)", sub: "Bayar tunai ke kurir saat sampai" },
+                  { id: "transfer-bri", label: "Transfer Bank BRI", sub: "Transfer ke rekening admin" },
+                  { id: "transfer-dana", label: "E-Wallet Dana", sub: "Bayar via aplikasi Dana" },
+                ].map((m) => (
+                  <label 
+                    key={m.id}
+                    className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                      paymentMethod === m.id ? "border-orange-500 bg-orange-50/30" : "border-gray-100 hover:border-gray-200"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="payment"
+                      value={m.id}
+                      checked={paymentMethod === m.id}
+                      onChange={(e) => setPaymentMethod(e.target.value as any)}
+                      className="w-5 h-5 text-orange-500 focus:ring-orange-500 border-gray-300"
+                    />
+                    <div>
+                      <div className="font-bold text-gray-900">{m.label}</div>
+                      <div className="text-xs text-gray-500">{m.sub}</div>
                     </div>
-                    <div className="text-sm text-gray-600">
-                      Bayar saat pesanan sampai
-                    </div>
-                  </div>
-                </label>
-                <label className="flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                  <input
-                    type="radio"
-                    name="payment"
-                    value="transfer-bri"
-                    checked={paymentMethod === "transfer-bri"}
-                    onChange={(e) => setPaymentMethod(e.target.value as "transfer-bri")}
-                    className="w-4 h-4 text-orange-500 focus:ring-orange-500"
-                  />
-                  <div>
-                    <div className="font-medium text-gray-900">Transfer Bank BRI</div>
-                    <div className="text-sm text-gray-600">
-                      Transfer ke rekening toko
-                    </div>
-                  </div>
-                </label>
-                <label className="flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-                  <input
-                    type="radio"
-                    name="payment"
-                    value="transfer-dana"
-                    checked={paymentMethod === "transfer-dana"}
-                    onChange={(e) => setPaymentMethod(e.target.value as "transfer-dana")}
-                    className="w-4 h-4 text-orange-500 focus:ring-orange-500"
-                  />
-                  <div>
-                    <div className="font-medium text-gray-900">Transfer Dana</div>
-                    <div className="text-sm text-gray-600">
-                      Transfer ke rekening toko
-                    </div>
-                  </div>
-                </label>
+                  </label>
+                ))}
               </div>
             </div>
           </div>
 
           {/* Right Column - Order Summary */}
           <div>
-            <div className="bg-white rounded-xl shadow-sm p-6 sticky top-24">
-              <h2 className="font-semibold text-gray-900 mb-4">
-                Ringkasan Pesanan
-              </h2>
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sticky top-24">
+              <h2 className="text-lg font-bold text-gray-900 mb-6">Ringkasan Pesanan</h2>
 
-              {/* Items */}
-              <div className="space-y-3 mb-6 pb-6 border-b border-gray-200">
+              <div className="space-y-4 mb-6 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
                 {items.map((item, index) => (
-                  <div key={`${item.productId}-${index}`} className="flex justify-between text-sm">
-                    <div>
-                      <div className="text-gray-900">
-                        {item.name} x{item.quantity}
+                  <div key={`${item.productId}-${index}`} className="flex justify-between items-start gap-4 text-sm">
+                    <div className="flex-1">
+                      <div className="text-gray-900 font-bold leading-tight mb-1">
+                        {item.name} <span className="text-orange-600">x{item.quantity}</span>
                       </div>
-                      <div className="text-gray-600 text-xs">
+                      <div className="text-[11px] text-gray-500 line-clamp-1 italic">
                         {item.outletName}
                       </div>
                     </div>
-                    <div className="text-gray-900 font-medium">
+                    <div className="text-gray-900 font-bold whitespace-nowrap">
                       {formatCurrency(item.price * item.quantity)}
                     </div>
                   </div>
                 ))}
               </div>
 
-              {/* Fees */}
-              <div className="space-y-3 mb-6 pb-6 border-b border-gray-200">
+              <div className="space-y-3 pt-6 border-t border-dashed border-gray-200 mb-6">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Subtotal Makanan</span>
-                  <span className="text-gray-900">
-                    {formatCurrency(finance.subtotal)}
-                  </span>
+                  <span className="text-gray-500">Subtotal Makanan</span>
+                  <span className="text-gray-900 font-medium">{formatCurrency(finance.subtotal)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Biaya Pengiriman</span>
-                  <span className="text-gray-900">
+                  <span className="text-gray-500">Ongkos Kirim (GPS)</span>
+                  <span className="text-gray-900 font-medium">
                     {finance.deliveryFee > 15000 ? (
-                      <>
-                        <span className="line-through text-gray-400 mr-1">
+                      <div className="text-right">
+                        <span className="line-through text-gray-400 text-[11px] mr-1">
                           {formatCurrency(Math.round(finance.deliveryFee * 1.15 / 1000) * 1000)}
                         </span>
-                        {formatCurrency(finance.deliveryFee)}
-                      </>
+                        <span>{formatCurrency(finance.deliveryFee)}</span>
+                      </div>
                     ) : (
                       formatCurrency(finance.deliveryFee)
                     )}
@@ -479,23 +390,33 @@ export function Checkout() {
                 </div>
               </div>
 
-              {/* Total */}
-              <div className="flex justify-between items-center mb-6">
-                <span className="text-lg font-semibold text-gray-900">
-                  Total Bayar
-                </span>
-                <span className="text-xl font-bold text-orange-600">
+              <div className="flex justify-between items-center mb-8 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                <span className="font-bold text-gray-900 text-lg">Total Bayar</span>
+                <span className="text-2xl font-black text-orange-600 leading-none">
                   {formatCurrency(finance.total)}
                 </span>
               </div>
 
               <button
                 onClick={handleOrder}
-                disabled={isSubmitting}
-                className="w-full py-4 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                disabled={isSubmitting || !customerCoords}
+                className="w-full py-4 bg-orange-500 text-white rounded-xl hover:bg-orange-600 transition-all font-bold shadow-lg shadow-orange-200 disabled:opacity-50 disabled:cursor-not-allowed transform active:scale-95"
               >
-                {isSubmitting ? "Memproses..." : "Pesan Sekarang"}
+                {isSubmitting ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Memproses...
+                  </div>
+                ) : (
+                  "Konfirmasi Pesanan"
+                )}
               </button>
+              
+              {!customerCoords && (
+                <p className="text-center text-red-500 text-[11px] mt-4 font-medium animate-pulse">
+                  ⚠️ Mohon ambil lokasi GPS untuk melanjutkan
+                </p>
+              )}
             </div>
           </div>
         </div>

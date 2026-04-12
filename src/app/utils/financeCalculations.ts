@@ -72,12 +72,12 @@ export function calculateOrderFinance(
   let zoneFee = 0;
 
   if (isGPSMode) {
-    // Logic Ongkir Zona (Fitur #52)
+    // Logic Ongkir Zona (Fitur #55)
     // Ongkir = Biaya Zona + (Jarak × Rp2.000)
-    if (distance <= 5) {
+    if (distance <= 3) {
       zone = "Hijau";
       zoneFee = 5000;
-    } else if (distance <= 10) {
+    } else if (distance <= 5) {
       zone = "Kuning";
       zoneFee = 10000;
     } else {

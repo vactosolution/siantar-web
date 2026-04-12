@@ -31,10 +31,9 @@ import {
   AlertCircle,
   Calendar,
 } from "lucide-react";
-import { useData } from "../../contexts/DataContext";
-import type { Order, Outlet, Profile } from "../../contexts/DataContext";
+import { useData, Order, Outlet, Profile } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
-import { formatCurrency, calculateOrderFinance, getDefaultFeeSettings } from "../../utils/financeCalculations";
+import { formatCurrency, calculateOrderFinance, getDefaultFeeSettings, calculateDistance } from "../../utils/financeCalculations";
 import { FinanceDashboard } from "../../components/FinanceDashboard";
 import { InvoiceModal } from "../../components/InvoiceModal";
 import { Logo } from "../../components/Logo";
@@ -80,6 +79,7 @@ export function AdminPanel() {
     addOutlet,
     updateOutlet: updateOutletData,
     deleteOutlet,
+    restoreOutlet,
     toggleOutletOpen,
     assignDriver,
     updateOrder,
@@ -537,6 +537,56 @@ export function AdminPanel() {
                   <div className="text-3xl font-bold text-gray-900">{activeDrivers}</div>
                 </div>
               </div>
+
+              {/* Live Tracking Drivers (Fitur #55) */}
+              <div className="bg-white rounded-xl shadow-sm p-6 mb-8 border border-orange-100">
+                <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                  <MapPin className="w-5 h-5 text-orange-500" />
+                  Live Tracking Driver (Online)
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {drivers.filter(d => (d as any).is_online).length === 0 ? (
+                    <div className="col-span-full py-6 text-center text-gray-400 text-sm italic">
+                      Tidak ada driver online saat ini.
+                    </div>
+                  ) : (
+                    drivers.filter(d => (d as any).is_online).map(driver => (
+                      <div key={driver.id} className="p-4 bg-gray-50 rounded-xl border border-gray-100">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <div className="font-bold text-gray-900">{driver.name}</div>
+                            <div className="text-[10px] text-gray-500">Update: { (driver as any).last_location_update ? new Date((driver as any).last_location_update).toLocaleTimeString() : 'N/A' }</div>
+                          </div>
+                          <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                        </div>
+                        <div className="text-xs text-gray-600 mb-3 space-y-1">
+                          <div className="flex justify-between">
+                            <span>Saldo:</span>
+                            <span className="font-medium">{formatCurrency((driver as any).balance || 0)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span>Posisi:</span>
+                            <span className="font-mono text-[10px]">
+                              {(driver as any).latitude?.toFixed(4)}, {(driver as any).longitude?.toFixed(4)}
+                            </span>
+                          </div>
+                        </div>
+                        {(driver as any).latitude && (
+                          <a
+                            href={`https://www.google.com/maps?q=${(driver as any).latitude},${(driver as any).longitude}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block w-full text-center py-2 bg-white border border-gray-200 rounded-lg text-xs font-bold text-blue-600 hover:bg-blue-50 transition-colors"
+                          >
+                            📍 Lihat di Maps
+                          </a>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Order Terbaru</h2>
                 {loadingOrders ? (
@@ -832,50 +882,89 @@ export function AdminPanel() {
 
                               {assigningOrderId === order.id ? (
                                 <div className="bg-white border-2 border-orange-500 rounded-lg p-3">
-                                  <div className="text-sm font-medium text-gray-900 mb-2">Pilih Driver:</div>
+                                  <div className="text-sm font-medium text-gray-900 mb-2">Pilih Driver Terdekat:</div>
                                   <div className="space-y-2">
-                                    {drivers.filter((d) => d.is_active).map((driver) => {
-                                      const todayDriverOrders = orders.filter(
-                                        o => o.driver_id === driver.id &&
-                                        new Date(o.created_at).toDateString() === new Date().toDateString() &&
-                                        o.status === 'completed'
-                                      ).length;
-                                      const isOnline = (driver as any).is_online;
-                                      const canAssign = isOnline; // Only allow assigning online drivers
+                                    {(() => {
+                                      const orderOutlet = outlets.find(o => o.id === order.outlet_id);
+                                      const driverList = drivers
+                                        .filter((d) => d.is_active)
+                                        .map(driver => {
+                                          const isOnline = (driver as any).is_online;
+                                          let distToOutlet = Infinity;
+                                          if (isOnline && orderOutlet?.latitude && orderOutlet?.longitude && (driver as any).latitude && (driver as any).longitude) {
+                                            distToOutlet = calculateDistance(
+                                              Number((driver as any).latitude),
+                                              Number((driver as any).longitude),
+                                              Number(orderOutlet.latitude),
+                                              Number(orderOutlet.longitude)
+                                            );
+                                          }
+                                          return { ...driver, distToOutlet, isOnline };
+                                        })
+                                        .sort((a, b) => {
+                                          if (a.isOnline && !b.isOnline) return -1;
+                                          if (!a.isOnline && b.isOnline) return 1;
+                                          return a.distToOutlet - b.distToOutlet;
+                                        });
 
-                                      return (
-                                        <button
-                                          key={driver.id}
-                                          onClick={() => canAssign && handleAssignDriver(order.id, driver.id)}
-                                          disabled={!canAssign}
-                                          className={`w-full text-left px-3 py-2 rounded text-sm ${
-                                            canAssign
-                                              ? 'bg-gray-50 hover:bg-orange-50'
-                                              : 'bg-gray-100 cursor-not-allowed opacity-60'
-                                          }`}
-                                        >
-                                          <div className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                              <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isOnline ? 'bg-green-500' : 'bg-gray-400'}`} />
-                                              <span className="font-medium">{driver.name}</span>
-                                            </div>
-                                            <div className="text-xs text-gray-500 flex gap-1">
-                                              <span className={isOnline ? 'text-green-600' : 'text-gray-400'}>{isOnline ? 'Online' : 'Offline'}</span>
-                                              <span>•</span>
-                                              <span>{todayDriverOrders}x hari ini</span>
-                                              <span>•</span>
-                                              <span>Saldo {formatCurrency((driver as any).balance ?? 0)}</span>
-                                            </div>
+                                      return driverList.map((driver, idx) => {
+                                        const todayDriverOrders = orders.filter(
+                                          o => o.driver_id === driver.id &&
+                                          new Date(o.created_at).toDateString() === new Date().toDateString() &&
+                                          o.status === 'completed'
+                                        ).length;
+                                        const canAssign = driver.isOnline;
+
+                                        return (
+                                          <div key={driver.id} className="space-y-1">
+                                            <button
+                                              onClick={() => canAssign && handleAssignDriver(order.id, driver.id)}
+                                              disabled={!canAssign}
+                                              className={`w-full text-left px-3 py-2 rounded text-sm transition-all ${
+                                                canAssign
+                                                  ? (idx === 0 ? 'bg-orange-50 border border-orange-200 hover:bg-orange-100' : 'bg-gray-50 hover:bg-orange-50')
+                                                  : 'bg-gray-100 cursor-not-allowed opacity-60'
+                                              }`}
+                                            >
+                                              <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${driver.isOnline ? 'bg-green-500' : 'bg-gray-400'}`} />
+                                                  <span className="font-medium">
+                                                    {driver.name}
+                                                    {idx === 0 && driver.isOnline && <span className="ml-2 text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full uppercase">Terdekat</span>}
+                                                  </span>
+                                                </div>
+                                                <div className="text-[10px] text-gray-500 flex gap-1 items-center">
+                                                  {driver.distToOutlet !== Infinity && (
+                                                    <span className="font-bold text-orange-600 bg-orange-50 px-1.5 rounded">{driver.distToOutlet.toFixed(1)} KM ke Kedai</span>
+                                                  )}
+                                                  <span>•</span>
+                                                  <span>{todayDriverOrders}x hari ini</span>
+                                                </div>
+                                              </div>
+                                              {!canAssign && (
+                                                <div className="text-[10px] text-red-500 mt-1">
+                                                  ⚠ Driver offline — tidak bisa di-assign
+                                                </div>
+                                              )}
+                                            </button>
+                                            {driver.isOnline && (driver as any).latitude && (
+                                              <div className="flex gap-2 pl-4">
+                                                <a
+                                                  href={`https://www.google.com/maps?q=${(driver as any).latitude},${(driver as any).longitude}`}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  className="text-[9px] text-blue-600 hover:underline flex items-center gap-0.5"
+                                                >
+                                                  <MapPin className="w-2.5 h-2.5" /> Lihat Posisi Driver
+                                                </a>
+                                              </div>
+                                            )}
                                           </div>
-                                          {!canAssign && (
-                                            <div className="text-xs text-red-500 mt-1">
-                                              ⚠ Driver offline — tidak bisa di-assign
-                                            </div>
-                                          )}
-                                        </button>
-                                      );
-                                    })}
-                                    <button onClick={() => setAssigningOrderId(null)} className="w-full px-3 py-2 text-gray-600 hover:bg-gray-100 rounded text-sm">
+                                        );
+                                      });
+                                    })()}
+                                    <button onClick={() => setAssigningOrderId(null)} className="w-full px-3 py-2 text-gray-600 hover:bg-gray-100 rounded text-sm font-bold border-t mt-2">
                                       Batal
                                     </button>
                                   </div>
@@ -1075,26 +1164,34 @@ export function AdminPanel() {
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                   {outlets.map((outlet) => {
                     const menuCount = getProductsByOutlet(outlet.id).length;
+                    const isActive = outlet.is_active !== false;
                     return (
-                      <div key={outlet.id} onClick={() => navigate(`/admin/outlet/${outlet.id}/menu`)} className="bg-white rounded-xl shadow-sm p-6 cursor-pointer hover:shadow-md transition-shadow">
+                      <div key={outlet.id} onClick={() => isActive && navigate(`/admin/outlet/${outlet.id}/menu`)} className={`bg-white rounded-xl shadow-sm p-6 transition-shadow ${isActive ? 'cursor-pointer hover:shadow-md' : 'opacity-75'}`}>
                         <div className="flex items-start justify-between mb-3">
                           <div className="flex items-center gap-3">
                             {outlet.image_url ? (
-                              <img src={outlet.image_url} alt={outlet.name} className="w-12 h-12 rounded-lg object-cover" />
+                              <img src={outlet.image_url} alt={outlet.name} className={`w-12 h-12 rounded-lg object-cover ${!isActive ? 'grayscale' : ''}`} />
                             ) : (
                               <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
                                 <Store className="w-6 h-6 text-orange-600" />
                               </div>
                             )}
                             <div>
-                              <div className="font-semibold text-gray-900">{outlet.name}</div>
+                              <div className="font-semibold text-gray-900 flex items-center gap-2">
+                                {outlet.name}
+                                {!isActive && (
+                                  <span className="px-2 py-0.5 bg-red-100 text-red-700 text-[10px] rounded-full uppercase tracking-wider font-bold">
+                                    Dihapus
+                                  </span>
+                                )}
+                              </div>
                               <div className="text-sm text-gray-600 flex items-center gap-1">
                                 <MapPin className="w-3 h-3" />
                                 {outlet.village}
                               </div>
                               <div className="flex items-center gap-1 mt-1">
                                 <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
-                                  outlet.is_open ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                                  outlet.is_open ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
                                 }`}>
                                   {outlet.is_open ? <DoorOpen className="w-3 h-3" /> : <DoorClosed className="w-3 h-3" />}
                                   {outlet.is_open ? "Buka" : "Tutup"}
@@ -1103,19 +1200,38 @@ export function AdminPanel() {
                             </div>
                           </div>
                           <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-                            <button
-                              onClick={() => toggleOutletOpen(outlet.id)}
-                              className={`p-2 rounded-lg ${outlet.is_open ? 'text-green-600 hover:bg-green-50' : 'text-red-600 hover:bg-red-50'}`}
-                              title={outlet.is_open ? "Tutup Outlet" : "Buka Outlet"}
-                            >
-                              {outlet.is_open ? <DoorOpen className="w-4 h-4" /> : <DoorClosed className="w-4 h-4" />}
-                            </button>
-                            <button onClick={() => handleEditOutlet(outlet)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg">
-                              <Edit2 className="w-4 h-4" />
-                            </button>
-                            <button onClick={() => handleDeleteOutlet(outlet.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg">
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            {isActive ? (
+                              <>
+                                <button
+                                  onClick={() => toggleOutletOpen(outlet.id)}
+                                  className={`p-2 rounded-lg ${outlet.is_open ? 'text-green-600 hover:bg-green-50' : 'text-gray-600 hover:bg-gray-100'}`}
+                                  title={outlet.is_open ? "Tutup Outlet" : "Buka Outlet"}
+                                >
+                                  {outlet.is_open ? <DoorOpen className="w-4 h-4" /> : <DoorClosed className="w-4 h-4" />}
+                                </button>
+                                <button onClick={() => handleEditOutlet(outlet)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg">
+                                  <Edit2 className="w-4 h-4" />
+                                </button>
+                                <button onClick={() => handleDeleteOutlet(outlet.id)} className="p-2 text-red-600 hover:bg-red-50 rounded-lg">
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                onClick={async () => {
+                                  if (confirm(`Pulihkan kedai ${outlet.name}?`)) {
+                                    try {
+                                      await restoreOutlet(outlet.id);
+                                    } catch (err: any) {
+                                      console.error("Gagal memulihkan kedai", err);
+                                    }
+                                  }
+                                }}
+                                className="px-3 py-1.5 bg-green-50 text-green-600 text-xs font-bold rounded-lg hover:bg-green-100 transition-colors"
+                              >
+                                Pulihkan
+                              </button>
+                            )}
                           </div>
                         </div>
                         <div className="space-y-2 text-sm mb-4">
@@ -1128,12 +1244,14 @@ export function AdminPanel() {
                             <span className="font-medium text-gray-900">{menuCount} item</span>
                           </div>
                         </div>
-                        <div className="pt-3 border-t border-gray-200">
-                          <div className="text-sm text-orange-600 font-medium flex items-center gap-2">
-                            <Package className="w-4 h-4" />
-                            <span>Klik untuk kelola menu</span>
+                        {isActive && (
+                          <div className="pt-3 border-t border-gray-200">
+                            <div className="text-sm text-orange-600 font-medium flex items-center gap-2">
+                              <Package className="w-4 h-4" />
+                              <span>Klik untuk kelola menu</span>
+                            </div>
                           </div>
-                        </div>
+                        )}
                       </div>
                     );
                   })}

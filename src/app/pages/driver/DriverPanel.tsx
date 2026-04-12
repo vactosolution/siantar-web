@@ -44,7 +44,8 @@ export function DriverPanel() {
   const navigate = useNavigate();
   const {
     orders, drivers, updateOrderStatus, feeSettings, outlets,
-    driverRejectOrder, toggleDriverOnline, completeOrderWithDeduction, updateDriverBalance
+    driverRejectOrder, toggleDriverOnline, completeOrderWithDeduction, updateDriverBalance,
+    updateDriverLocation
   } = useData();
   const [activeOrder, setActiveOrder] = useState<any>(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -61,6 +62,35 @@ export function DriverPanel() {
   const currentDriver = drivers.find((d) => d.id === driverId);
   const driverBalance = (currentDriver as any)?.balance ?? 0;
   const isOnline = (currentDriver as any)?.is_online ?? false;
+
+  // GPS Tracking (Fitur #55)
+  useEffect(() => {
+    let watchId: number | null = null;
+    let lastUpdate = 0;
+    const UPDATE_INTERVAL = 25000; // 25 seconds
+
+    if (isOnline && driverId && navigator.geolocation) {
+      console.log("Starting GPS Tracking for driver:", driverId);
+      watchId = navigator.geolocation.watchPosition(
+        (pos) => {
+          const now = Date.now();
+          if (now - lastUpdate > UPDATE_INTERVAL) {
+            updateDriverLocation(driverId, pos.coords.latitude, pos.coords.longitude);
+            lastUpdate = now;
+          }
+        },
+        (err) => console.error("GPS Tracking Error:", err),
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    }
+
+    return () => {
+      if (watchId !== null) {
+        navigator.geolocation.clearWatch(watchId);
+        console.log("Stopped GPS Tracking");
+      }
+    };
+  }, [isOnline, driverId, updateDriverLocation]);
 
   // Sync activeOrder with realtime updates or auto-assign if none selected
   useEffect(() => {

@@ -40,7 +40,7 @@ export function Home() {
   }, []);
 
   const allCategories = outlets
-    .filter(o => o.is_open !== false) // Only show outlets that are open
+    .filter(o => o.is_active !== false && o.is_open !== false) // Only show active and open outlets for category list
     .map((o) => o.category)
     .filter((v, i, a) => a.indexOf(v) === i);
   const [showAllCategories, setShowAllCategories] = useState(false);
