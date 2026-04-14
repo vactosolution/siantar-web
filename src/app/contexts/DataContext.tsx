@@ -7,8 +7,8 @@ import type { Tables, TablesInsert } from "../../lib/database.types";
 export type Village = string;
 export type OrderStatus = "pending" | "processing" | "going-to-store" | "picked-up" | "on-delivery" | "completed";
 
-export type Outlet = Tables<"outlets"> & { markup_enabled?: boolean };
-export type Product = Tables<"products"> & { markup_enabled?: boolean };
+export type Outlet = Tables<"outlets">;
+export type Product = Tables<"products">;
 export type ProductVariant = Tables<"product_variants">;
 export type ProductExtra = Tables<"product_extras">;
 export type Order = Tables<"orders">;
@@ -19,7 +19,6 @@ export interface OrderItemWithProduct extends OrderItem {
   image_url?: string | null;
   product_name?: string;
   product_price?: number;
-  markup_enabled?: boolean;
 }
 export type Profile = Tables<"profiles"> & { dana_number?: string };
 export type PaymentAccount = Tables<"payment_accounts">;
@@ -57,6 +56,7 @@ export interface CartItem {
   quantity: number;
   selectedVariant?: ProductVariant;
   selectedExtras: ProductExtra[];
+  markupAmount: number;
   price: number;
   outletId: string;
   outletName: string;
@@ -395,6 +395,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       name: i.name,
       price: i.price,
       quantity: i.quantity || 1,
+      markup_amount: (i as any).markup_amount || 0,
       item_total: i.item_total,
       selected_variant: i.selected_variant || null,
       selected_extras: i.selected_extras || [],

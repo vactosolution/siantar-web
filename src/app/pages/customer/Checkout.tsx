@@ -58,8 +58,7 @@ export function Checkout() {
   };
 
   const totalItems = items.reduce((sum, item) => sum + item.quantity, 0);
-  const isMarkupEnabled = outlet?.markup_enabled !== false;
-  const markupAmount = isMarkupEnabled ? 1000 * totalItems : 0;
+  const markupAmount = items.reduce((sum, item) => sum + (item.markupAmount * item.quantity), 0);
   
   // distance is 0 if GPS not yet obtained
   const distance = customerCoords ? gpsDistance : 0;
@@ -199,6 +198,7 @@ export function Checkout() {
         name: item.name,
         price: item.price,
         quantity: item.quantity,
+        markup_amount: item.markupAmount,
         item_total: item.price * item.quantity,
         selected_variant: item.selectedVariant?.name ?? null,
         selected_extras: (item.selectedExtras || []).map(e => e.name),

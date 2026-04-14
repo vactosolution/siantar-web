@@ -73,8 +73,12 @@ export function StoreDetail() {
     // Base price (use discount if available)
     let basePrice = product.discount_price ?? product.price;
     
-    // Apply markup only if product.markup_enabled is true
-    const productMarkup = (product as any).markup_enabled !== false ? 1000 : 0;
+    // Priority: Item Toggle > Outlet Toggle > Default (true)
+    const isMarkupEnabled = product.markup_enabled !== null 
+      ? product.markup_enabled 
+      : (outlet.markup_enabled !== false);
+      
+    const productMarkup = isMarkupEnabled ? 1000 : 0;
     let price = basePrice + productMarkup;
 
     const variantId = selectedVariants[product.id];
@@ -104,16 +108,20 @@ export function StoreDetail() {
         .map((id) => product.extras?.find((e) => e.id === id))
         .filter((e): e is ProductExtra => !!e);
 
-      // Apply markup at product level
-      const productMarkup = (product as any).markup_enabled !== false ? 1000 : 0;
-      const basePrice = (product.discount_price ?? product.price) + productMarkup;
+      // Hierarchical markup logic
+      const isMarkupEnabled = product.markup_enabled !== null 
+        ? product.markup_enabled 
+        : (outlet.markup_enabled !== false);
+        
+      const markupAmountPerItem = isMarkupEnabled ? 1000 : 0;
 
       addItem({
         productId: product.id,
         name: product.name,
-        basePrice,
+        basePrice: product.discount_price ?? product.price,
         selectedVariant,
         selectedExtras: productExtras,
+        markupAmount: markupAmountPerItem,
         price: calculateProductPrice(product),
         outletId: storeId,
         outletName: outlet.name,
@@ -262,7 +270,13 @@ export function StoreDetail() {
                   <p className="text-orange-600 font-medium mt-1">
                     {product.discount_price ? (
                       <span className="line-through text-gray-400 text-sm mr-1">
-                        Rp {(product.price + ((product as any).markup_enabled !== false ? 1000 : 0)).toLocaleString("id-ID")}
+                        Rp {(() => {
+                          const isMarkupEnabled = product.markup_enabled !== null 
+                            ? product.markup_enabled 
+                            : (outlet?.markup_enabled !== false);
+                          const markup = isMarkupEnabled ? 1000 : 0;
+                          return (product.price + markup).toLocaleString("id-ID");
+                        })()}
                       </span>
                     ) : null}
                     Rp {calculateProductPrice(product).toLocaleString("id-ID")}

@@ -18,6 +18,7 @@ export interface CartItem {
   quantity: number;
   selectedVariant?: ProductVariant;
   selectedExtras: ProductExtra[];
+  markupAmount: number;
   price: number; // Final calculated price per item
   outletId: string;
   outletName: string;

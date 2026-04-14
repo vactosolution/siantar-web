@@ -207,6 +207,7 @@ export type Database = {
           created_at: string
           id: string
           item_total: number
+          markup_amount: number | null
           name: string
           order_id: string
           price: number
@@ -219,6 +220,7 @@ export type Database = {
           created_at?: string
           id?: string
           item_total: number
+          markup_amount?: number | null
           name: string
           order_id: string
           price: number
@@ -231,6 +233,7 @@ export type Database = {
           created_at?: string
           id?: string
           item_total?: number
+          markup_amount?: number | null
           name?: string
           order_id?: string
           price?: number
@@ -815,7 +818,8 @@ export type Database = {
         Args: { p_driver_id: string; p_order_id: string }
         Returns: undefined
       }
-      get_server_time: { Args: Record<string, never>; Returns: string }
+      get_server_time: { Args: never; Returns: string }
+      is_admin: { Args: never; Returns: boolean }
       reject_order: { Args: { p_order_id: string }; Returns: string }
       set_user_admin: { Args: { user_email: string }; Returns: undefined }
       toggle_driver_online: { Args: { p_driver_id: string }; Returns: boolean }

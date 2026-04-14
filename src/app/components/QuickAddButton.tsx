@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Plus, X } from "lucide-react";
 import { useCart } from "../contexts/CartContext";
+import { useData } from "../contexts/DataContext";
 import type { ProductWithDetails, ProductVariant, ProductExtra } from "../contexts/DataContext";
 import {
   Dialog,
@@ -20,15 +21,23 @@ interface QuickAddButtonProps {
 
 export function QuickAddButton({ product, outletId, outletName }: QuickAddButtonProps) {
   const { addItem } = useCart();
+  const { outlets } = useData();
   const [showDialog, setShowDialog] = useState(false);
   const [selectedVariant, setSelectedVariant] = useState<string>("");
   const [selectedExtras, setSelectedExtras] = useState<string[]>([]);
 
+  const outlet = outlets.find(o => o.id === outletId);
   const hasVariants = product.variants && product.variants.length > 0;
   const hasExtras = product.extras && product.extras.length > 0;
 
+  const isMarkupEnabled = product.markup_enabled !== null 
+    ? product.markup_enabled 
+    : (outlet?.markup_enabled !== false);
+  
+  const markupAmountPerItem = isMarkupEnabled ? 1000 : 0;
+
   const calculatePrice = () => {
-    let price = (product.discount_price ?? product.price) + 1000; // +Rp1.000 markup per item
+    let price = (product.discount_price ?? product.price) + markupAmountPerItem;
 
     if (selectedVariant) {
       const variant = product.variants?.find((v) => v.id === selectedVariant);
@@ -47,8 +56,9 @@ export function QuickAddButton({ product, outletId, outletName }: QuickAddButton
     addItem({
       productId: product.id,
       name: product.name,
-      basePrice: (product.discount_price ?? product.price) + 1000,
-      price: (product.discount_price ?? product.price) + 1000,
+      basePrice: (product.discount_price ?? product.price),
+      markupAmount: markupAmountPerItem,
+      price: (product.discount_price ?? product.price) + markupAmountPerItem,
       outletId,
       outletName,
       imageUrl: product.image_url,
@@ -70,9 +80,10 @@ export function QuickAddButton({ product, outletId, outletName }: QuickAddButton
     addItem({
       productId: product.id,
       name: product.name,
-      basePrice: (product.discount_price ?? product.price) + 1000,
+      basePrice: (product.discount_price ?? product.price),
       selectedVariant: variant,
       selectedExtras: extras,
+      markupAmount: markupAmountPerItem,
       price,
       outletId,
       outletName,

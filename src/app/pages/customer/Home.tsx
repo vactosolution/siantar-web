@@ -247,7 +247,13 @@ export function Home() {
                       <p className="text-xs text-gray-500 truncate mb-2">{outlet?.name}</p>
                       <div className="flex items-center justify-between">
                         <p className="text-orange-600 font-extrabold text-sm">
-                          {formatCurrency((product.discount_price || product.price) + (outlet?.markup_enabled !== false ? 1000 : 0))}
+                          {(() => {
+                            const isMarkupEnabled = product.markup_enabled !== null 
+                              ? product.markup_enabled 
+                              : (outlet?.markup_enabled !== false);
+                            const markup = isMarkupEnabled ? 1000 : 0;
+                            return formatCurrency((product.discount_price || product.price) + markup);
+                          })()}
                         </p>
                         <div className="flex items-center gap-1">
                           <Star className="w-3 h-3 text-yellow-500 fill-yellow-500" />
@@ -289,7 +295,13 @@ export function Home() {
                       <h3 className="font-bold text-sm text-gray-900 truncate mb-1">{product.name}</h3>
                       <p className="text-xs text-gray-500 truncate mb-2">{outlet?.name}</p>
                       <p className="text-orange-600 font-extrabold text-sm">
-                        {formatCurrency((product.discount_price || product.price) + (outlet?.markup_enabled !== false ? 1000 : 0))}
+                        {(() => {
+                          const isMarkupEnabled = product.markup_enabled !== null 
+                            ? product.markup_enabled 
+                            : (outlet?.markup_enabled !== false);
+                          const markup = isMarkupEnabled ? 1000 : 0;
+                          return formatCurrency((product.discount_price || product.price) + markup);
+                        })()}
                       </p>
                     </div>
                   </div>
@@ -470,16 +482,29 @@ export function Home() {
                       <ImageIcon className="w-8 h-8 text-gray-400" />
                     </div>
                   )}
-                  <div className="p-3">
+                   <div className="p-3">
                     <h3 className="font-medium text-sm truncate">{product.name}</h3>
                     <p className="text-xs text-gray-500 truncate">{outlet?.name}</p>
                     <p className="text-orange-600 font-bold text-sm">
-                      {product.discount_price ? (
-                        <span className="line-through text-gray-400 text-xs mr-1">
-                          {formatCurrency(product.price + (outlet?.markup_enabled !== false ? 1000 : 0))}
-                        </span>
-                      ) : null}
-                      {formatCurrency((product.discount_price || product.price) + (outlet?.markup_enabled !== false ? 1000 : 0))}
+                      {(() => {
+                        const isMarkupEnabled = product.markup_enabled !== null 
+                          ? product.markup_enabled 
+                          : (outlet?.markup_enabled !== false);
+                        const markup = isMarkupEnabled ? 1000 : 0;
+                        const finalPrice = (product.discount_price || product.price) + markup;
+                        const originalPriceWithMarkup = product.price + markup;
+
+                        return (
+                          <>
+                            {product.discount_price ? (
+                              <span className="line-through text-gray-400 text-xs mr-1">
+                                {formatCurrency(originalPriceWithMarkup)}
+                              </span>
+                            ) : null}
+                            {formatCurrency(finalPrice)}
+                          </>
+                        );
+                      })()}
                     </p>
                   </div>
                 </div>

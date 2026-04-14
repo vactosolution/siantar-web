@@ -51,7 +51,7 @@ export function OutletMenuManagement() {
     is_available: true,
     is_best_seller: false,
     is_recommended: false,
-    markup_enabled: true, // Toggle for +Rp1.000 markup
+    markup_enabled: null as boolean | null, // null = Inherit from Outlet
   });
 
   // Variant and extra forms
@@ -90,7 +90,7 @@ export function OutletMenuManagement() {
       is_available: true,
       is_best_seller: false,
       is_recommended: false,
-      markup_enabled: true,
+      markup_enabled: null,
     });
     setShowMenuModal(true);
   };
@@ -109,7 +109,7 @@ export function OutletMenuManagement() {
       is_available: menu.is_available,
       is_best_seller: (menu as any).is_best_seller || false,
       is_recommended: (menu as any).is_recommended || false,
-      markup_enabled: (menu as any).markup_enabled ?? true,
+      markup_enabled: menu.markup_enabled,
     });
     setShowMenuModal(true);
   };
@@ -660,31 +660,52 @@ export function OutletMenuManagement() {
                   />
                 </button>
               </div>
-
-              {/* Markup Enabled Toggle */}
-              <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg border border-green-200">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-lg">💰</span>
-                    <label className="text-sm font-medium text-gray-900">Tambah Rp1.000 ke Harga</label>
-                  </div>
-                  <p className="text-xs text-gray-600 mt-1">
-                    Aktifkan untuk menambahkan margin Rp1.000 ke harga jual customer. 
-                    Matikan untuk item berharga rendah (contoh: pentol Rp1.000).
-                  </p>
+               {/* Markup Toggle (3-state) */}
+               <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-lg">💰</span>
+                  <label className="text-sm font-medium text-gray-900">Tambahan +Rp1.000 (Markup)</label>
                 </div>
-                <button
-                  onClick={() => setMenuForm({ ...menuForm, markup_enabled: !menuForm.markup_enabled })}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ml-4 ${
-                    menuForm.markup_enabled ? "bg-green-600" : "bg-gray-300"
-                  }`}
-                >
-                  <span
-                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                      menuForm.markup_enabled ? "translate-x-6" : "translate-x-1"
+                
+                <div className="flex bg-white p-1 rounded-md border border-gray-200">
+                  <button
+                    onClick={() => setMenuForm({ ...menuForm, markup_enabled: null })}
+                    className={`flex-1 py-1.5 text-[11px] font-medium rounded transition-all ${
+                      menuForm.markup_enabled === null 
+                        ? "bg-green-600 text-white shadow-sm" 
+                        : "text-gray-500 hover:text-gray-700"
                     }`}
-                  />
-                </button>
+                  >
+                    Ikuti Kedai
+                  </button>
+                  <button
+                    onClick={() => setMenuForm({ ...menuForm, markup_enabled: true })}
+                    className={`flex-1 py-1.5 text-[11px] font-medium rounded transition-all ${
+                      menuForm.markup_enabled === true 
+                        ? "bg-green-600 text-white shadow-sm" 
+                        : "text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
+                    Selalu Aktif
+                  </button>
+                  <button
+                    onClick={() => setMenuForm({ ...menuForm, markup_enabled: false })}
+                    className={`flex-1 py-1.5 text-[11px] font-medium rounded transition-all ${
+                      menuForm.markup_enabled === false 
+                        ? "bg-green-600 text-white shadow-sm" 
+                        : "text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
+                    Nonaktif
+                  </button>
+                </div>
+                
+                <p className="text-[10px] text-gray-600 mt-2 px-1 italic">
+                  * Status saat ini: {menuForm.markup_enabled === null 
+                    ? `Mengikuti pengaturan kedai (${outlet.markup_enabled !== false ? 'Aktif' : 'Nonaktif'})` 
+                    : (menuForm.markup_enabled ? 'Dipaksa Aktif' : 'Dipaksa Nonaktif')
+                  }
+                </p>
               </div>
 
               {/* Variants Section */}

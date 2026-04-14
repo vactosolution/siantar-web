@@ -105,10 +105,17 @@ export function ManualOrderCreation({ onClose, onOrderCreated }: ManualOrderCrea
   // Calculate current item price
   const calculateItemPrice = () => {
     if (!selectedProduct) return 0;
-    const basePrice = (selectedProduct.discount_price || selectedProduct.price) + 1000;
+    
+    // Use hierarchical markup logic
+    const isMarkupEnabled = selectedProduct.markup_enabled !== null 
+      ? selectedProduct.markup_enabled 
+      : (selectedOutlet?.markup_enabled !== false);
+    const markupAmountPerItem = isMarkupEnabled ? 1000 : 0;
+    
+    const basePriceWithMarkup = (selectedProduct.discount_price || selectedProduct.price) + markupAmountPerItem;
     const variantPrice = selectedVariant ? selectedVariant.price_adjustment : 0;
     const extrasPrice = selectedExtras.reduce((sum, extra) => sum + extra.price, 0);
-    return (basePrice + variantPrice + extrasPrice) * quantity;
+    return (basePriceWithMarkup + variantPrice + extrasPrice) * quantity;
   };
 
   // Add item to order
@@ -210,6 +217,14 @@ export function ManualOrderCreation({ onClose, onOrderCreated }: ManualOrderCrea
       // Save customer data for future use
       saveCustomerData();
 
+      // Calculate total service fee as the sum of all item markups
+      const totalMarkupAmount = orderItems.reduce((sum, item) => {
+        const isMarkupEnabled = item.product.markup_enabled !== null 
+          ? item.product.markup_enabled 
+          : (selectedOutlet?.markup_enabled !== false);
+        return sum + (isMarkupEnabled ? 1000 : 0) * item.quantity;
+      }, 0);
+
       const orderData: TablesInsert<"orders"> = {
         id: crypto.randomUUID(),
         customer_name: customerName,
@@ -222,7 +237,7 @@ export function ManualOrderCreation({ onClose, onOrderCreated }: ManualOrderCrea
         distance,
         charged_distance: finance.chargedDistance,
         delivery_fee: finance.deliveryFee,
-        service_fee: totalItems * 1000,
+        service_fee: totalMarkupAmount,
         admin_fee: finance.adminFee,
         total: finance.total,
         payment_method: paymentMethod,
@@ -237,18 +252,26 @@ export function ManualOrderCreation({ onClose, onOrderCreated }: ManualOrderCrea
 
       const orderId = orderData.id!;
 
-      const itemsData: TablesInsert<"order_items">[] = orderItems.map((item) => ({
-        order_id: orderId,
-        product_id: item.product.id,
-        name: item.product.name,
-        price: item.itemTotal / item.quantity,
-        quantity: item.quantity,
-        item_total: item.itemTotal,
-        selected_variant: item.selectedVariant?.name ?? null,
-        selected_extras: item.selectedExtras.length > 0
-          ? item.selectedExtras.map(e => e.name)
-          : null,
-      }));
+      const itemsData: TablesInsert<"order_items">[] = orderItems.map((item) => {
+        const isMarkupEnabled = item.product.markup_enabled !== null 
+          ? item.product.markup_enabled 
+          : (selectedOutlet?.markup_enabled !== false);
+        const itemMarkup = isMarkupEnabled ? 1000 : 0;
+
+        return {
+          order_id: orderId,
+          product_id: item.product.id,
+          name: item.product.name,
+          price: item.itemTotal / item.quantity,
+          quantity: item.quantity,
+          markup_amount: itemMarkup,
+          item_total: item.itemTotal,
+          selected_variant: item.selectedVariant?.name ?? null,
+          selected_extras: item.selectedExtras.length > 0
+            ? item.selectedExtras.map(e => e.name)
+            : null,
+        };
+      });
 
       const createdOrderId = await addOrder(orderData, itemsData);
       

@@ -172,6 +172,7 @@ export function AdminPanel() {
       saturday: { isOpen: true, open: "10:00", close: "22:00" },
       sunday: { isOpen: true, open: "10:00", close: "22:00" },
     } as any,
+    markup_enabled: true,
   });
   const [outletImageFile, setOutletImageFile] = useState<File | null>(null);
   const [outletImagePreview, setOutletImagePreview] = useState<string | null>(null);
@@ -300,6 +301,7 @@ export function AdminPanel() {
         saturday: { isOpen: true, open: "10:00", close: "22:00" },
         sunday: { isOpen: true, open: "10:00", close: "22:00" },
       },
+      markup_enabled: true,
     });
     setOutletImageFile(null);
     setOutletImagePreview(null);
@@ -325,6 +327,7 @@ export function AdminPanel() {
         saturday: { isOpen: true, open: "10:00", close: "22:00" },
         sunday: { isOpen: true, open: "10:00", close: "22:00" },
       },
+      markup_enabled: (outlet as any).markup_enabled ?? true,
     });
     setOutletImageFile(null);
     setOutletImagePreview(outlet.image_url);
@@ -1433,6 +1436,31 @@ export function AdminPanel() {
                     <option value="Catering / Nasi Box">Catering / Nasi Box</option>
                   </optgroup>
                 </select>
+              </div>
+
+              {/* Markup Toggle */}
+              <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg border border-green-200">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">💰</span>
+                    <label className="text-sm font-medium text-gray-900">Tambah +Rp1.000 (Semua Menu)</label>
+                  </div>
+                  <p className="text-[10px] text-gray-600 mt-1">
+                    Aktifkan untuk menerapkan markup harga Rp1.000 pada semua menu di kedai ini secara otomatis.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setOutletForm({ ...outletForm, markup_enabled: !outletForm.markup_enabled })}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ml-4 ${
+                    outletForm.markup_enabled ? "bg-green-600" : "bg-gray-300"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      outletForm.markup_enabled ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
               </div>
 
               {/* Koordinat Outlet */}

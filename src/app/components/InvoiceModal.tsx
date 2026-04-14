@@ -317,12 +317,12 @@ export function InvoiceModal({ order, type, onClose }: InvoiceModalProps) {
                 <div>
                   <div style={{ fontWeight: 'bold', fontSize: '10px', marginBottom: '6px' }}>PESANAN:</div>
                   {orderItems.map((item, idx) => {
-                    // For outlet invoice: show original price
-                    // For customer invoice: show price with markup (if enabled)
-                    const itemMarkup = (item as any).markup_enabled !== false ? 1000 : 0;
+                    // For outlet invoice: deduct stored markup_amount from final price
+                    // For customer invoice: use the stored final price (includes markup)
+                    const currentMarkup = (item as any).markup_amount || 0;
                     const displayPrice = type === "outlet" 
-                      ? item.product_price || item.price 
-                      : (item.product_price || item.price) + itemMarkup;
+                      ? item.price - currentMarkup
+                      : item.price;
                     const displayItemTotal = displayPrice * item.quantity;
 
                     return (
