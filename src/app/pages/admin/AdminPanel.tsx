@@ -35,6 +35,7 @@ import {
 import { useData, Order, Outlet, Profile } from "../../contexts/DataContext";
 import { useAuth } from "../../contexts/AuthContext";
 import { formatCurrency, calculateOrderFinance, getDefaultFeeSettings, calculateDistance } from "../../utils/financeCalculations";
+import { isOutletCurrentlyOpen } from "../../utils/scheduleUtils";
 import { FinanceDashboard } from "../../components/FinanceDashboard";
 import { InvoiceModal } from "../../components/InvoiceModal";
 import { Logo } from "../../components/Logo";
@@ -1285,10 +1286,10 @@ export function AdminPanel() {
                               </div>
                               <div className="flex items-center gap-1 mt-1">
                                 <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
-                                  outlet.is_open ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
+                                  isOutletCurrentlyOpen(outlet) ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
                                 }`}>
-                                  {outlet.is_open ? <DoorOpen className="w-3 h-3" /> : <DoorClosed className="w-3 h-3" />}
-                                  {outlet.is_open ? "Buka" : "Tutup"}
+                                  {isOutletCurrentlyOpen(outlet) ? <DoorOpen className="w-3 h-3" /> : <DoorClosed className="w-3 h-3" />}
+                                  {isOutletCurrentlyOpen(outlet) ? "Buka" : "Tutup"}
                                 </span>
                               </div>
                             </div>
@@ -1297,11 +1298,18 @@ export function AdminPanel() {
                             {isActive ? (
                               <>
                                 <button
-                                  onClick={() => toggleOutletOpen(outlet.id)}
-                                  className={`p-2 rounded-lg ${outlet.is_open ? 'text-green-600 hover:bg-green-50' : 'text-gray-600 hover:bg-gray-100'}`}
-                                  title={outlet.is_open ? "Tutup Outlet" : "Buka Outlet"}
+                                  onClick={() => {
+                                    toggleOutletOpen(outlet.id);
+                                    if (!outlet.is_manual_schedule) {
+                                      toast.info("Mode Manual Aktif Otomatis!", { description: "Jadwal otomatis tidak akan berlaku besok kecuali mode ini dimatikan lewat 'Edit'." });
+                                    } else {
+                                      toast.success(`Status outlet diperbarui.`);
+                                    }
+                                  }}
+                                  className={`p-2 rounded-lg ${isOutletCurrentlyOpen(outlet) ? 'text-green-600 hover:bg-green-50' : 'text-gray-600 hover:bg-gray-100'}`}
+                                  title={isOutletCurrentlyOpen(outlet) ? "Tutup Outlet" : "Buka Outlet"}
                                 >
-                                  {outlet.is_open ? <DoorOpen className="w-4 h-4" /> : <DoorClosed className="w-4 h-4" />}
+                                  {isOutletCurrentlyOpen(outlet) ? <DoorOpen className="w-4 h-4" /> : <DoorClosed className="w-4 h-4" />}
                                 </button>
                                 <button onClick={() => handleEditOutlet(outlet)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg">
                                   <Edit2 className="w-4 h-4" />

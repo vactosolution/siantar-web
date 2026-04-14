@@ -241,10 +241,28 @@ export function DataProvider({ children }: { children: ReactNode }) {
     refreshAppSettings();
     refreshOrderRatings();
 
-    // Realtime subscriptions (WebSocket)
-    const ordersChannel = subscribeToTable('orders', () => refreshOrders());
+    const ordersChannel = subscribeToTable('orders', (payload) => {
+      if (payload.eventType === 'UPDATE') {
+        setOrders(prev => prev.map(o => o.id === payload.new.id ? { ...o, ...payload.new } as Order : o));
+      } else if (payload.eventType === 'INSERT') {
+        setOrders(prev => [payload.new as Order, ...prev]);
+      } else if (payload.eventType === 'DELETE') {
+        setOrders(prev => prev.filter(o => o.id !== payload.old.id));
+      }
+    });
+    
     const productsChannel = subscribeToTable('products', () => refreshProducts());
-    const outletsChannel = subscribeToTable('outlets', () => refreshOutlets());
+    
+    const outletsChannel = subscribeToTable('outlets', (payload) => {
+      if (payload.eventType === 'UPDATE') {
+        setOutlets(prev => prev.map(o => o.id === payload.new.id ? { ...o, ...payload.new } as Outlet : o));
+      } else if (payload.eventType === 'INSERT') {
+        setOutlets(prev => [...prev, payload.new as Outlet]);
+      } else if (payload.eventType === 'DELETE') {
+        setOutlets(prev => prev.filter(o => o.id !== payload.old.id));
+      }
+    });
+    
     const appSettingsChannel = subscribeToTable('app_settings', () => refreshAppSettings());
 
     // Profiles: incremental update for driver balance/name changes
@@ -308,7 +326,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const toggleOutletOpen = useCallback(async (id: string) => {
     const outlet = outlets.find(o => o.id === id);
     if (!outlet) return;
-    const { error } = await supabase.from("outlets").update({ is_open: !outlet.is_open }).eq("id", id);
+    const { error } = await supabase.from("outlets").update({ 
+      is_open: !outlet.is_open,
+      is_manual_schedule: true 
+    }).eq("id", id);
     if (error) throw error;
     await refreshOutlets();
   }, [refreshOutlets, outlets]);

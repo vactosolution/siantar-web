@@ -14,7 +14,7 @@ import {
 } from "../../utils/financeCalculations";
 import type { TablesInsert } from "../../../lib/database.types";
 import { isOutletCurrentlyOpen } from "../../utils/scheduleUtils";
-
+import { supabase } from "../../../lib/supabase";
 export function Checkout() {
   const { items, subtotal: cartSubtotal, clearCart } = useCart();
   const { addOrder, outlets, feeSettings, orders } = useData();
@@ -122,16 +122,33 @@ export function Checkout() {
       return;
     }
 
-    // Re-validate outlet status right before creating order
-    if (!isOutletCurrentlyOpen(outlet)) {
-      toast.error("Mohon maaf, outlet baru saja tutup. Pesanan tidak dapat dilanjutkan.");
-      navigate(`/home/store/${outlet.id}`);
-      return;
-    }
-
     setIsSubmitting(true);
 
     try {
+      // 1. Re-validate outlet status right before creating order using FRESH SERVER DATA
+      const { data: freshOutlet, error: outletError } = await supabase
+        .from('outlets')
+        .select('*')
+        .eq('id', outlet.id)
+        .single();
+        
+      const { data: serverTimeStr, error: timeError } = await supabase.rpc('get_server_time');
+
+      if (outletError || !freshOutlet || timeError || !serverTimeStr) {
+        toast.error("Koneksi tidak stabil. Gagal memvalidasi status outlet.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      const serverDate = new Date(serverTimeStr);
+
+      if (!isOutletCurrentlyOpen(freshOutlet as any, serverDate)) {
+        toast.error("Mohon maaf, outlet baru saja tutup. Pesanan tidak dapat dilanjutkan.");
+        navigate(`/home/store/${outlet.id}`);
+        setIsSubmitting(false);
+        return;
+      }
+
       const today = new Date().toDateString();
       const todayOrderCodes = orders
         .filter(o => o.unique_payment_code && new Date(o.created_at).toDateString() === today)

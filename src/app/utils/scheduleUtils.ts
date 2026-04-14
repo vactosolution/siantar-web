@@ -14,7 +14,7 @@ const DAY_NAMES = ["sunday", "monday", "tuesday", "wednesday", "thursday", "frid
  * Checks if an outlet is currently open based on its schedule and timezone (WIB/UTC+7).
  * Handles edge cases like midnight-crossing shifts.
  */
-export const isOutletCurrentlyOpen = (outlet: Tables<"outlets">): boolean => {
+export const isOutletCurrentlyOpen = (outlet: Tables<"outlets">, forcedDate?: Date): boolean => {
   // 1. Check if outlet is manually deactivated globally
   if (outlet.is_active === false) return false;
 
@@ -23,12 +23,12 @@ export const isOutletCurrentlyOpen = (outlet: Tables<"outlets">): boolean => {
     return outlet.is_open === true;
   }
 
-  // 3. Automated schedule logic (WIB - Asia/Jakarta)
-  const now = new Date();
+  // 3. Automated schedule logic (WITA - Asia/Makassar)
+  const now = forcedDate || new Date();
   
-  // Format current time in WIB
-  const wibTime = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Jakarta",
+  // Format current time in WITA
+  const witaTime = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Makassar",
     year: "numeric",
     month: "numeric",
     day: "numeric",
@@ -38,15 +38,15 @@ export const isOutletCurrentlyOpen = (outlet: Tables<"outlets">): boolean => {
     hour12: false,
   }).format(now);
 
-  const [datePart, timePart] = wibTime.split(", ");
+  const [datePart, timePart] = witaTime.split(", ");
   let [hour, minute] = timePart.split(":").map(Number);
   if (hour === 24) hour = 0; // Fix edge case where hour12: false returns 24
   
   const currentTimeInMinutes = hour * 60 + minute;
 
-  // Get current day name in WIB
+  // Get current day name in WITA
   const currentDayName = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Jakarta",
+    timeZone: "Asia/Makassar",
     weekday: "long",
   }).format(now).toLowerCase();
 
@@ -121,21 +121,21 @@ export const getNextOpenTime = (outlet: Tables<"outlets">): string => {
   const schedule = outlet.operating_hours as any;
   if (!schedule) return "Tutup permanen";
 
-  // Format current time in WIB
-  const wibTime = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Jakarta",
+  // Format current time in WITA
+  const witaTime = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Makassar",
     hour: "numeric",
     minute: "numeric",
     hour12: false,
   }).format(now);
   
-  let [currentHourWIB, currentMinWIB] = wibTime.split(":").map(Number);
-  if (currentHourWIB === 24) currentHourWIB = 0;
-  const currentTimeInMinutes = currentHourWIB * 60 + currentMinWIB;
+  let [currentHourWITA, currentMinWITA] = witaTime.split(":").map(Number);
+  if (currentHourWITA === 24) currentHourWITA = 0;
+  const currentTimeInMinutes = currentHourWITA * 60 + currentMinWITA;
 
-  // Get current day name in WIB
+  // Get current day name in WITA
   const currentDayName = new Intl.DateTimeFormat("en-US", {
-    timeZone: "Asia/Jakarta",
+    timeZone: "Asia/Makassar",
     weekday: "long",
   }).format(now).toLowerCase();
   

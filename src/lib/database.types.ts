@@ -815,6 +815,7 @@ export type Database = {
         Args: { p_driver_id: string; p_order_id: string }
         Returns: undefined
       }
+      get_server_time: { Args: Record<string, never>; Returns: string }
       reject_order: { Args: { p_order_id: string }; Returns: string }
       set_user_admin: { Args: { user_email: string }; Returns: undefined }
       toggle_driver_online: { Args: { p_driver_id: string }; Returns: boolean }
