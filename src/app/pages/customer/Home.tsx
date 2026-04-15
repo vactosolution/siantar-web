@@ -150,14 +150,14 @@ export function Home() {
           <p className="text-gray-300 mb-6">
             Tinggal pilih outlet, langsung dianter
           </p>
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+          <div className="relative group">
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-white w-5 h-5" />
             <input
               type="text"
-              placeholder="Cari outlet, lokasi, atau kategori..."
+              placeholder="Cari outlet, menu, atau kategori"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-12 pr-4 py-3 rounded-xl text-gray-900 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-500"
+              className="w-full pl-12 pr-4 py-3 rounded-xl bg-white/10 border-2 border-orange-500/30 text-white placeholder-white/60 caret-white focus:outline-none focus:ring-4 focus:ring-orange-500/20 focus:border-orange-500 focus:bg-white/15 transition-all text-sm sm:text-base font-medium"
             />
           </div>
         </div>
