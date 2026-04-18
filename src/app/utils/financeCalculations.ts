@@ -63,37 +63,28 @@ export function calculateOrderFinance(
   subtotal: number, // This should be the marked-up subtotal (store_price + 1000) * qty
   distance: number,
   markupAmount: number = 0, // Explicitly passed markup total
-  fees: FeeSettings = getDefaultFeeSettings(),
-  directDeliveryFee?: number,
-  isGPSMode: boolean = false
+  fees: FeeSettings = getDefaultFeeSettings()
 ): OrderFinance {
   let deliveryFee = 0;
   let zone: "Hijau" | "Kuning" | "Merah" | "Manual" | undefined = undefined;
   let zoneFee = 0;
 
-  if (isGPSMode) {
-    // Logic Ongkir Zona (Fitur #55)
-    // Ongkir = Biaya Zona + (Jarak × Rp2.000)
-    if (distance <= 3) {
-      zone = "Hijau";
-      zoneFee = 5000;
-    } else if (distance <= 5) {
-      zone = "Kuning";
-      zoneFee = 10000;
-    } else {
-      zone = "Merah";
-      zoneFee = 15000;
-    }
-    deliveryFee = zoneFee + (distance * fees.cost_per_km);
+  // Logic Ongkir Zona (Fitur #55)
+  // Ongkir = Biaya Zona + (Jarak × Rp2.000)
+  if (distance <= 3) {
+    zone = "Hijau";
+    zoneFee = 5000;
+  } else if (distance <= 5) {
+    zone = "Kuning";
+    zoneFee = 10000;
   } else {
-    // Fallback to village matrix logic
-    const chargedDistance = Math.max(distance, fees.min_distance_km);
-    deliveryFee = (directDeliveryFee !== undefined && directDeliveryFee > 0) ? directDeliveryFee : chargedDistance * fees.cost_per_km;
-    zone = "Manual";
+    zone = "Merah";
+    zoneFee = 15000;
   }
+  deliveryFee = zoneFee + (distance * fees.cost_per_km);
 
   const chargedDistance = Math.max(distance, fees.min_distance_km);
-  const isMinimumChargeApplied = !isGPSMode && distance < fees.min_distance_km;
+  const isMinimumChargeApplied = distance < fees.min_distance_km;
   
   const driverSharePct = fees.driver_share_pct / 100;
   const adminSharePct = fees.admin_share_pct / 100;

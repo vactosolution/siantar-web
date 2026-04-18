@@ -23,7 +23,6 @@ export interface OrderItemWithProduct extends OrderItem {
 export type Profile = Tables<"profiles"> & { dana_number?: string };
 export type PaymentAccount = Tables<"payment_accounts">;
 export type FeeSetting = Tables<"fee_settings">;
-export type DistanceMatrix = Tables<"distance_matrix">;
 export type AppSetting = { key: string; value: any };
 export type OrderRating = {
   id: string;
@@ -105,10 +104,6 @@ interface DataContextType {
   feeSettings: Record<string, number>;
   refreshFeeSettings: () => Promise<void>;
 
-  distanceMatrix: DistanceMatrix[];
-  getDistance: (fromVillage: string, toVillage: string) => number;
-  getDeliveryFee: (fromVillage: string, toVillage: string) => number;
-  refreshDistanceMatrix: () => Promise<void>;
   updateDriverBalance: (driverId: string, amount: number) => Promise<void>;
   driverRejectOrder: (orderId: string, driverId: string) => Promise<void>;
   toggleDriverOnline: (driverId: string) => Promise<boolean>;
@@ -136,7 +131,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [drivers, setDrivers] = useState<Profile[]>([]);
   const [paymentAccounts, setPaymentAccounts] = useState<PaymentAccount[]>([]);
   const [feeSettings, setFeeSettings] = useState<Record<string, number>>({});
-  const [distanceMatrix, setDistanceMatrix] = useState<DistanceMatrix[]>([]);
   const [orderItemsCache, setOrderItemsCache] = useState<Record<string, OrderItemWithProduct[]>>({});
   const [appSettings, setAppSettings] = useState<Record<string, any>>({});
   const [orderRatings, setOrderRatings] = useState<OrderRating[]>([]);
@@ -207,12 +201,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setFeeSettings(settings);
   }, []);
 
-  // Fetch distance matrix
-  const refreshDistanceMatrix = useCallback(async () => {
-    const { data } = await supabase.from("distance_matrix").select("*");
-    setDistanceMatrix(data || []);
-  }, []);
-
   // Fetch app settings
   const refreshAppSettings = useCallback(async () => {
     const { data } = await (supabase.from as any)("app_settings").select("*");
@@ -237,7 +225,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
     refreshDrivers();
     refreshPaymentAccounts();
     refreshFeeSettings();
-    refreshDistanceMatrix();
     refreshAppSettings();
     refreshOrderRatings();
 
@@ -540,22 +527,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
     await refreshDrivers();
   }, [refreshDrivers]);
 
-  // Distance calculation
-  const getDistance = useCallback((fromVillage: string, toVillage: string): number => {
-    const entry = distanceMatrix.find(
-      (d) => d.from_village === fromVillage && d.to_village === toVillage
-    );
-    return entry?.distance_km ?? 0;
-  }, [distanceMatrix]);
-
-  // Delivery fee lookup from distance_matrix.fee
-  const getDeliveryFee = useCallback((fromVillage: string, toVillage: string): number => {
-    const entry = distanceMatrix.find(
-      (d) => d.from_village === fromVillage && d.to_village === toVillage
-    );
-    return entry?.fee ?? 0;
-  }, [distanceMatrix]);
-
   // Update driver balance using atomic RPC (positive = top up, negative = deduct)
   const updateDriverBalance = useCallback(async (driverId: string, amount: number) => {
     const { error } = await supabase.rpc('update_driver_balance', {
@@ -699,10 +670,6 @@ export function DataProvider({ children }: { children: ReactNode }) {
         refreshPaymentAccounts,
         feeSettings,
         refreshFeeSettings,
-        distanceMatrix,
-        getDistance,
-        getDeliveryFee,
-        refreshDistanceMatrix,
         updateDriverBalance,
         driverRejectOrder,
         toggleDriverOnline,

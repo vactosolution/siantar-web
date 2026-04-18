@@ -31,29 +31,19 @@ interface ManualOrderCreationProps {
 }
 
 const VILLAGE_GROUPS = [
-  {
-    label: "Wilayah 1 (Dekat)",
-    villages: [
-      "Desa Bukit Sungkai",
-      "Desa Sekuningan Baru",
-      "Desa Balai Riam (Pusat Kecamatan)",
-      "Desa Bangun Jaya",
-    ],
-  },
-  {
-    label: "Wilayah 2 (Jauh)",
-    villages: [
-      "Desa Lupu Peruca",
-      "Desa Natai Kondang",
-      "Desa Ajang",
-    ],
-  },
+  "Balai Riam",
+  "Ajang",
+  "Natai Kondang",
+  "Bangkuang",
+  "Lupu Peruca",
+  "Sekombulan",
+  "Bukit Sakti",
+  "Pemuar",
+  "Air Beras"
 ];
 
-const SAME_VILLAGE_FLAT_FEE = 7000;
-
 export function ManualOrderCreation({ onClose, onOrderCreated }: ManualOrderCreationProps) {
-  const { outlets, products, getProductsByOutlet, addOrder, getDistance, getDeliveryFee, feeSettings, orders } = useData();
+  const { outlets, products, getProductsByOutlet, addOrder, feeSettings, orders } = useData();
 
   // Loading state
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -69,6 +59,9 @@ export function ManualOrderCreation({ onClose, onOrderCreated }: ManualOrderCrea
 
   // Outlet selection
   const [selectedOutlet, setSelectedOutlet] = useState<Outlet | null>(null);
+
+  // Manual Distance (Fitur #68)
+  const [manualDistance, setManualDistance] = useState<number>(0);
 
   // Order items
   const [orderItems, setOrderItems] = useState<ManualOrderItem[]>([]);
@@ -150,12 +143,8 @@ export function ManualOrderCreation({ onClose, onOrderCreated }: ManualOrderCrea
   // Calculate totals
   const subtotal = orderItems.reduce((sum, item) => sum + item.itemTotal, 0);
   const totalItems = orderItems.reduce((sum, item) => sum + item.quantity, 0);
-  const distance = customerVillage && selectedOutlet ? getDistance(customerVillage, selectedOutlet.village) : 0;
-  const isSameVillage = customerVillage !== "" && selectedOutlet && customerVillage === selectedOutlet.village;
-  const deliveryFeeFromMatrix = isSameVillage
-    ? SAME_VILLAGE_FLAT_FEE
-    : (customerVillage && selectedOutlet ? getDeliveryFee(customerVillage, selectedOutlet.village) : 0);
-  const finance = calculateOrderFinance(subtotal, distance, totalItems, fees, deliveryFeeFromMatrix);
+  const distance = manualDistance || 0;
+  const finance = calculateOrderFinance(subtotal, distance, totalItems, fees);
   
   // Generate unique payment code for transfer
   // Collect existing codes from today's orders to avoid duplicates
@@ -465,19 +454,32 @@ export function ManualOrderCreation({ onClose, onOrderCreated }: ManualOrderCrea
                     <select
                       value={customerVillage}
                       onChange={(e) => setCustomerVillage(e.target.value)}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6A00] focus:border-transparent"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6A00] focus:border-transparent bg-white"
                     >
                       <option value="">Pilih desa</option>
-                      {VILLAGE_GROUPS.map((group) => (
-                        <optgroup key={group.label} label={group.label}>
-                          {group.villages.map((village) => (
-                            <option key={village} value={village}>
-                              {village}
-                            </option>
-                          ))}
-                        </optgroup>
+                      {VILLAGE_GROUPS.map((village) => (
+                        <option key={village} value={village}>
+                          {village}
+                        </option>
                       ))}
                     </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Jarak Pengantaran (KM) *
+                    </label>
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type="number"
+                        step="0.1"
+                        value={manualDistance}
+                        onChange={(e) => setManualDistance(parseFloat(e.target.value) || 0)}
+                        placeholder="Contoh: 2.5"
+                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#FF6A00] focus:border-transparent"
+                      />
+                    </div>
                   </div>
 
                   <div className="md:col-span-2">
@@ -521,7 +523,6 @@ export function ManualOrderCreation({ onClose, onOrderCreated }: ManualOrderCrea
 
                 <div className="grid md:grid-cols-2 gap-4">
                   {outlets.map((outlet) => {
-                    const distanceToCustomer = customerVillage ? getDistance(customerVillage, outlet.village) : 0;
                     const isSelected = selectedOutlet?.id === outlet.id;
 
                     return (
@@ -541,9 +542,6 @@ export function ManualOrderCreation({ onClose, onOrderCreated }: ManualOrderCrea
                             <div className="flex items-center gap-2 mt-2">
                               <span className="text-xs px-2 py-1 bg-gray-100 rounded">
                                 {outlet.category}
-                              </span>
-                              <span className="text-xs text-gray-500">
-                                {distanceToCustomer} km
                               </span>
                             </div>
                           </div>

@@ -14,7 +14,7 @@ export function Settings() {
 
   const { role, isAuthenticated, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const { paymentAccounts, refreshPaymentAccounts, feeSettings, refreshFeeSettings, distanceMatrix, refreshDistanceMatrix, outlets, updateOutlet } = useData();
+  const { paymentAccounts, refreshPaymentAccounts, feeSettings, refreshFeeSettings, outlets, updateOutlet } = useData();
   const [markupLoading, setMarkupLoading] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
@@ -34,14 +34,6 @@ export function Settings() {
     account_name: "",
     is_active: true,
   });
-
-  // Distance fee editing
-  const [editingFee, setEditingFee] = useState<{ id: string; from: string; to: string; fee: number } | null>(null);
-  const [newFee, setNewFee] = useState(0);
-  const [savingFee, setSavingFee] = useState(false);
-
-  // Get unique villages from distance matrix
-  const villages = Array.from(new Set(distanceMatrix.map((d) => d.from_village))).sort();
 
   useEffect(() => {
     if (authLoading) return;
@@ -153,21 +145,6 @@ export function Settings() {
       toast.success("Akun pembayaran dihapus");
     } catch (err: any) {
       toast.error(err.message);
-    }
-  };
-
-  const handleSaveDistanceFee = async () => {
-    if (!editingFee || newFee <= 0) return;
-    setSavingFee(true);
-    try {
-      await supabase.from("distance_matrix").update({ fee: newFee }).eq("id", editingFee.id);
-      await refreshDistanceMatrix();
-      toast.success("Ongkir berhasil diupdate");
-      setEditingFee(null);
-    } catch (err: any) {
-      toast.error(err.message || "Gagal menyimpan ongkir");
-    } finally {
-      setSavingFee(false);
     }
   };
 
@@ -295,45 +272,6 @@ export function Settings() {
           </div>
         </section>
 
-        {/* Distance Fee Matrix */}
-        <section className="bg-white rounded-xl shadow-sm p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <MapPin className="w-6 h-6 text-orange-500" />
-            <h2 className="text-lg font-semibold text-gray-900">Ongkir Per Desa</h2>
-          </div>
-          <div className="space-y-6">
-            {villages.map((fromVillage) => (
-              <div key={fromVillage} className="border border-gray-200 rounded-lg p-4">
-                <h3 className="font-semibold text-gray-900 mb-3">Dari {fromVillage}</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                  {distanceMatrix
-                    .filter((d) => d.from_village === fromVillage)
-                    .sort((a, b) => a.to_village.localeCompare(b.to_village))
-                    .map((entry) => (
-                      <div
-                        key={entry.id}
-                        className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                      >
-                        <div>
-                          <div className="text-sm text-gray-600">Ke {entry.to_village.replace("Desa ", "")}</div>
-                          <div className="font-bold text-gray-900">{formatCurrency(entry.fee)}</div>
-                        </div>
-                        <button
-                          onClick={() => {
-                            setEditingFee({ id: entry.id, from: entry.from_village, to: entry.to_village, fee: entry.fee });
-                            setNewFee(entry.fee);
-                          }}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
       </main>
 
       {/* Account Modal */}
@@ -368,49 +306,6 @@ export function Settings() {
               </button>
               <button onClick={handleSaveAccount} disabled={loading} className="flex-1 px-4 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 font-medium disabled:opacity-50">
                 {loading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "Simpan"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Distance Fee Edit Modal */}
-      {editingFee && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setEditingFee(null)} />
-          <div className="relative bg-white rounded-xl shadow-xl p-6 w-full max-w-md mx-4">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Edit Ongkir</h2>
-            <div className="space-y-4">
-              <div className="p-3 bg-gray-50 rounded-lg">
-                <div className="text-sm text-gray-600">Rute</div>
-                <div className="font-medium text-gray-900">
-                  {editingFee.from} → {editingFee.to}
-                </div>
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Ongkir Baru (Rp)</label>
-                <input
-                  type="number"
-                  value={newFee}
-                  onChange={(e) => setNewFee(parseInt(e.target.value) || 0)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
-                />
-              </div>
-              <div className="text-sm text-gray-600">
-                Ongkir lama: {formatCurrency(editingFee.fee)}
-              </div>
-            </div>
-            <div className="flex gap-3 mt-6">
-              <button onClick={() => setEditingFee(null)} className="flex-1 px-4 py-3 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium">
-                Batal
-              </button>
-              <button
-                onClick={handleSaveDistanceFee}
-                disabled={savingFee || newFee <= 0}
-                className="flex-1 px-4 py-3 bg-orange-500 text-white rounded-lg hover:bg-orange-600 font-medium disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {savingFee ? <Loader2 className="w-5 h-5 animate-spin" /> : <Save className="w-5 h-5" />}
-                <span>Simpan</span>
               </button>
             </div>
           </div>

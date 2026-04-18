@@ -21,6 +21,7 @@ import {
   WifiOff,
   Clock,
   ShoppingBag,
+  Navigation,
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useData } from "../../contexts/DataContext";
@@ -147,7 +148,7 @@ export function DriverPanel() {
     driver_share_pct: feeSettings.driver_share_pct ?? 80,
     admin_share_pct: feeSettings.admin_share_pct ?? 20,
     min_distance_km: feeSettings.min_distance_km ?? 1,
-  }, order.delivery_fee);
+  });
 
   const todayStats = {
     orders: todaysCompleted.length,
@@ -538,6 +539,36 @@ export function DriverPanel() {
                             </div>
                           </div>
 
+                          <div className="grid grid-cols-2 gap-2 mb-3">
+                            {(() => {
+                              const outlet = outlets.find(o => o.id === order.outlet_id);
+                              return (
+                                <>
+                                  <a
+                                    href={`https://www.google.com/maps?q=${outlet?.latitude},${outlet?.longitude}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-xs font-bold shadow-sm"
+                                  >
+                                    <MapPin className="w-3.5 h-3.5" />
+                                    Maps Kedai
+                                  </a>
+                                  {order.customer_latitude && (
+                                    <a
+                                      href={`https://www.google.com/maps?q=${order.customer_latitude},${order.customer_longitude}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="flex items-center justify-center gap-1.5 px-3 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-xs font-bold shadow-sm"
+                                    >
+                                      <Navigation className="w-3.5 h-3.5" />
+                                      Maps Customer
+                                    </a>
+                                  )}
+                                </>
+                              );
+                            })()}
+                          </div>
+
                           <button
                             onClick={() => setShowOrderItemsDetail({ orderId: order.id, outletName: order.outlet_name })}
                             className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors font-medium mb-3"
@@ -753,6 +784,36 @@ export function DriverPanel() {
                     </div>
                   );
                 })()}
+
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  {(() => {
+                    const outlet = outlets.find(o => o.id === activeOrder.outlet_id);
+                    return (
+                      <>
+                        <a
+                          href={`https://www.google.com/maps?q=${outlet?.latitude},${outlet?.longitude}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-center gap-2 py-4 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all font-bold shadow-md shadow-blue-100"
+                        >
+                          <MapPin className="w-5 h-5" />
+                          Maps Kedai
+                        </a>
+                        {activeOrder.customer_latitude && (
+                          <a
+                            href={`https://www.google.com/maps?q=${activeOrder.customer_latitude},${activeOrder.customer_longitude}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-center gap-2 py-4 bg-green-600 text-white rounded-xl hover:bg-green-700 transition-all font-bold shadow-md shadow-green-100"
+                          >
+                            <Navigation className="w-5 h-5" />
+                            Maps Customer
+                          </a>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
 
                 {/* Lihat Pesanan Button in Active Order */}
                 <button

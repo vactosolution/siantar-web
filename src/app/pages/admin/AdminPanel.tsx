@@ -53,23 +53,15 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../components/ui/ta
 import { OrderItemsDetail } from "../../components/OrderItemsDetail";
 
 const VILLAGE_GROUPS = [
-  {
-    label: "Wilayah 1 (Dekat)",
-    villages: [
-      "Desa Bukit Sungkai",
-      "Desa Sekuningan Baru",
-      "Desa Balai Riam (Pusat Kecamatan)",
-      "Desa Bangun Jaya",
-    ],
-  },
-  {
-    label: "Wilayah 2 (Jauh)",
-    villages: [
-      "Desa Lupu Peruca",
-      "Desa Natai Kondang",
-      "Desa Ajang",
-    ],
-  },
+  "Balai Riam",
+  "Ajang",
+  "Natai Kondang",
+  "Bangkuang",
+  "Lupu Peruca",
+  "Sekombulan",
+  "Bukit Sakti",
+  "Pemuar",
+  "Air Beras"
 ];
 
 export function AdminPanel() {
@@ -788,7 +780,7 @@ export function AdminPanel() {
                       driver_share_pct: fees.driver_share_pct,
                       admin_share_pct: fees.admin_share_pct,
                       min_distance_km: fees.min_distance_km,
-                    }, order.delivery_fee);
+                    });
                   return (
                     <div key={order.id} className="bg-white rounded-xl shadow-sm p-6">
                       <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4 mb-4">
@@ -807,23 +799,29 @@ export function AdminPanel() {
                             <div className="text-gray-600">
                               <span className="font-medium">Outlet:</span> {order.outlet_name}
                             </div>
-                            <div className="flex items-center gap-2 text-gray-600">
-                              <MapPin className="w-4 h-4" />
-                              <span>{order.customer_village}</span>
-                              {order.customer_latitude && order.customer_longitude && (
-                                <a
-                                  href={`https://www.google.com/maps/dir/?api=1&origin=${
-                                    outlets.find(o => o.id === order.outlet_id)?.latitude || ""
-                                  },${
-                                    outlets.find(o => o.id === order.outlet_id)?.longitude || ""
-                                  }&destination=${order.customer_latitude},${order.customer_longitude}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="ml-auto text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full hover:bg-orange-200 font-semibold"
-                                >
-                                  Peta
-                                </a>
-                              )}
+                            <div className="flex items-start gap-2 text-gray-600">
+                              <MapPin className="w-4 h-4 mt-1 flex-shrink-0" />
+                              <div className="flex-1">
+                                <div className="font-bold text-gray-900">{order.customer_village}</div>
+                                <div className="text-xs leading-relaxed mt-1 text-gray-700 bg-gray-100 p-2 rounded-lg border border-gray-200">
+                                  {order.address}
+                                </div>
+                                {order.customer_latitude && (
+                                  <div className="mt-2 flex items-center gap-2">
+                                    <span className="text-[10px] font-mono bg-gray-100 px-2 py-1 rounded border border-gray-200">
+                                      {order.customer_latitude.toFixed(6)}, {order.customer_longitude?.toFixed(6)}
+                                    </span>
+                                    <a
+                                      href={`https://www.google.com/maps?q=${order.customer_latitude},${order.customer_longitude}`}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      className="text-[10px] bg-blue-600 text-white px-3 py-1 rounded-full hover:bg-blue-700 font-bold flex items-center gap-1 shadow-sm transition-all"
+                                    >
+                                      📍 Buka Maps
+                                    </a>
+                                  </div>
+                                )}
+                              </div>
                             </div>
                             <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 mt-2">
                               <div className="text-gray-700"><span className="font-medium">Jarak:</span> {order.distance} km → Dikenakan: {order.charged_distance} km</div>
@@ -1172,42 +1170,35 @@ export function AdminPanel() {
                     <MapPin className="w-5 h-5 text-blue-500" />
                     Ketersediaan Lokasi Pengantaran
                   </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {VILLAGE_GROUPS.map((group) => (
-                      <div key={group.label} className="space-y-3">
-                        <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">{group.label}</div>
-                        <div className="space-y-2">
-                          {group.villages.map((village) => {
-                            const isInactive = (appSettings.inactive_villages || []).includes(village);
-                            return (
-                              <div key={village} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                                <span className={`text-sm font-medium ${isInactive ? "text-gray-400 line-through" : "text-gray-700"}`}>
-                                  {village}
-                                </span>
-                                <button
-                                  onClick={() => {
-                                    const current = appSettings.inactive_villages || [];
-                                    const next = isInactive
-                                      ? current.filter((v: string) => v !== village)
-                                      : [...current, village];
-                                    updateAppSetting("inactive_villages", next);
-                                  }}
-                                  className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors focus:outline-none ${
-                                    !isInactive ? "bg-blue-500" : "bg-gray-300"
-                                  }`}
-                                >
-                                  <span
-                                    className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
-                                      !isInactive ? "translate-x-5.5" : "translate-x-1"
-                                    }`}
-                                  />
-                                </button>
-                              </div>
-                            );
-                          })}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {VILLAGE_GROUPS.map((village) => {
+                      const isInactive = (appSettings.inactive_villages || []).includes(village);
+                      return (
+                        <div key={village} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                          <span className={`text-sm font-medium ${isInactive ? "text-gray-400 line-through" : "text-gray-700"}`}>
+                            {village}
+                          </span>
+                          <button
+                            onClick={() => {
+                              const current = appSettings.inactive_villages || [];
+                              const next = isInactive
+                                ? current.filter((v: string) => v !== village)
+                                : [...current, village];
+                              updateAppSetting("inactive_villages", next);
+                            }}
+                            className={`relative inline-flex h-5 w-10 items-center rounded-full transition-colors focus:outline-none ${
+                              !isInactive ? "bg-blue-500" : "bg-gray-300"
+                            }`}
+                          >
+                            <span
+                              className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
+                                !isInactive ? "translate-x-5.5" : "translate-x-1"
+                              }`}
+                            />
+                          </button>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -1395,10 +1386,10 @@ export function AdminPanel() {
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
                 >
                   <option value="">-- Pilih Desa --</option>
-                  {VILLAGE_GROUPS.map((group) => (
-                    <optgroup key={group.label} label={group.label}>
-                      {group.villages.map((v) => <option key={v} value={v}>{v}</option>)}
-                    </optgroup>
+                  {VILLAGE_GROUPS.map((v) => (
+                    <option key={v} value={v}>
+                      {v}
+                    </option>
                   ))}
                 </select>
               </div>

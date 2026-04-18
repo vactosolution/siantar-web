@@ -16,6 +16,18 @@ import {
 import type { TablesInsert } from "../../../lib/database.types";
 import { isOutletCurrentlyOpen } from "../../utils/scheduleUtils";
 import { supabase } from "../../../lib/supabase";
+const VILLAGE_GROUPS = [
+  "Balai Riam",
+  "Ajang",
+  "Natai Kondang",
+  "Bangkuang",
+  "Lupu Peruca",
+  "Sekombulan",
+  "Bukit Sakti",
+  "Pemuar",
+  "Air Beras"
+];
+
 export function Checkout() {
   useTitle("Checkout");
 
@@ -25,6 +37,7 @@ export function Checkout() {
   const navigate = useNavigate();
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [village, setVillage] = useState("");
   const [address, setAddress] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"cod" | "transfer-bri" | "transfer-dana">("cod");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -65,7 +78,7 @@ export function Checkout() {
   
   // distance is 0 if GPS not yet obtained
   const distance = customerCoords ? gpsDistance : 0;
-  const finance = calculateOrderFinance(cartSubtotal, distance, markupAmount, fees, 0, !!customerCoords);
+  const finance = calculateOrderFinance(cartSubtotal, distance, markupAmount, fees);
 
   // Handle GPS Location (Fitur #55)
   const handleGetLocation = () => {
@@ -104,7 +117,7 @@ export function Checkout() {
   };
 
   const handleOrder = async () => {
-    if (!name || !phone || !address) {
+    if (!name || !phone || !village || !address) {
       toast.error("Mohon lengkapi data pemesan");
       return;
     }
@@ -171,7 +184,7 @@ export function Checkout() {
         id: crypto.randomUUID(),
         customer_name: name,
         customer_phone: phone,
-        customer_village: "Lokasi GPS", // Hardcoded as village selection is removed
+        customer_village: village,
         address,
         outlet_id: outlet.id,
         outlet_name: outlet.name,
@@ -324,6 +337,24 @@ export function Checkout() {
                     </div>
                   </div>
                 )}
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Desa Tempat Tinggal
+                  </label>
+                  <select
+                    value={village}
+                    onChange={(e) => setVillage(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all outline-none bg-white"
+                  >
+                    <option value="">Pilih Desa...</option>
+                    {VILLAGE_GROUPS.map((v) => (
+                      <option key={v} value={v}>
+                        {v}
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">

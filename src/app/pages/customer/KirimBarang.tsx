@@ -29,6 +29,18 @@ const PACKAGE_CATEGORIES = [
   "Lainnya",
 ];
 
+const VILLAGE_GROUPS = [
+  "Balai Riam",
+  "Ajang",
+  "Natai Kondang",
+  "Bangkuang",
+  "Lupu Peruca",
+  "Sekombulan",
+  "Bukit Sakti",
+  "Pemuar",
+  "Air Beras"
+];
+
 export function KirimBarang() {
   useTitle("Kirim Barang");
 
@@ -38,12 +50,14 @@ export function KirimBarang() {
   // Sender (Pengirim) Details
   const [senderName, setSenderName] = useState("");
   const [senderPhone, setSenderPhone] = useState("");
+  const [senderVillage, setSenderVillage] = useState("");
   const [fromAddress, setFromAddress] = useState("");
   const [fromCoords, setFromCoords] = useState<{ lat: number; lng: number } | null>(null);
 
   // Receiver (Penerima) Details
   const [receiverName, setReceiverName] = useState("");
   const [receiverPhone, setReceiverPhone] = useState("");
+  const [receiverVillage, setReceiverVillage] = useState("");
   const [toAddress, setToAddress] = useState("");
   const [toCoords, setToCoords] = useState<{ lat: number; lng: number } | null>(null);
 
@@ -78,7 +92,7 @@ export function KirimBarang() {
     : 0;
     
   const subtotal = 0;
-  const finance = calculateOrderFinance(subtotal, distance, 0, fees, 0, !!(fromCoords && toCoords));
+  const finance = calculateOrderFinance(subtotal, distance, 0, fees);
 
   const displayWeight = estimatedWeight && parseFloat(estimatedWeight) < 1 ? "1 kg" : estimatedWeight ? `${estimatedWeight} kg` : "0 kg";
   const deliveryOutlet = outlets[0]; // Fallback outlet for delivery service
@@ -114,11 +128,11 @@ export function KirimBarang() {
   };
 
   const handleSubmit = async () => {
-    if (!senderName || !senderPhone || !fromAddress || !fromCoords) {
+    if (!senderName || !senderPhone || !senderVillage || !fromAddress || !fromCoords) {
       toast.error("Mohon lengkapi data pengirim & lokasi jemput");
       return;
     }
-    if (!receiverName || !receiverPhone || !toAddress || !toCoords) {
+    if (!receiverName || !receiverPhone || !receiverVillage || !toAddress || !toCoords) {
       toast.error("Mohon lengkapi data penerima & lokasi antar");
       return;
     }
@@ -149,7 +163,7 @@ export function KirimBarang() {
         id: orderId,
         customer_name: senderName,
         customer_phone: senderPhone,
-        customer_village: "Lokasi GPS",
+        customer_village: receiverVillage,
         address: toAddress,
         outlet_id: deliveryOutlet.id,
         outlet_name: deliveryOutlet.name,
@@ -174,13 +188,13 @@ export function KirimBarang() {
         delivery_data: {
           sender_name: senderName,
           sender_phone: senderPhone,
-          from_village: "Lokasi GPS",
+          from_village: senderVillage,
           from_address: fromAddress,
           from_latitude: fromCoords.lat,
           from_longitude: fromCoords.lng,
           receiver_name: receiverName,
           receiver_phone: receiverPhone,
-          to_village: "Lokasi GPS",
+          to_village: receiverVillage,
           to_address: toAddress,
           to_latitude: toCoords.lat,
           to_longitude: toCoords.lng,
@@ -257,6 +271,17 @@ export function KirimBarang() {
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"
                   />
                 </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Desa Penjemputan</label>
+                  <select
+                    value={senderVillage}
+                    onChange={(e) => setSenderVillage(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-white text-sm"
+                  >
+                    <option value="">Pilih Desa...</option>
+                    {VILLAGE_GROUPS.map(v => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                </div>
                 <button
                   onClick={() => handleGetLocation("from")}
                   disabled={isLocatingFrom}
@@ -299,6 +324,17 @@ export function KirimBarang() {
                     placeholder="No. WA Penerima"
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none"
                   />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">Desa Pengantaran</label>
+                  <select
+                    value={receiverVillage}
+                    onChange={(e) => setReceiverVillage(e.target.value)}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 outline-none bg-white text-sm"
+                  >
+                    <option value="">Pilih Desa...</option>
+                    {VILLAGE_GROUPS.map(v => <option key={v} value={v}>{v}</option>)}
+                  </select>
                 </div>
                 <div className="bg-orange-50 border border-orange-100 rounded-xl p-4 text-xs text-orange-800 italic">
                   * Jika Anda berada di lokasi tujuan, klik tombol di bawah. Jika tidak, kurir akan tetap menuju alamat manual yang Anda tulis.
