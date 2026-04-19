@@ -29,7 +29,7 @@ const VILLAGE_GROUPS = [
 export function Checkout() {
   useTitle("Checkout");
 
-  const { items, subtotal: cartSubtotal, clearCart } = useCart();
+  const { items, notes, subtotal: cartSubtotal, clearCart } = useCart();
   const { addOrder, outlets, feeSettings, orders } = useData();
   const { customerPhone, username: customerName } = useAuth();
   const navigate = useNavigate();
@@ -204,6 +204,7 @@ export function Checkout() {
         customer_latitude: customerCoords.lat,
         customer_longitude: customerCoords.lng,
         zone: finance.zone || null,
+        customer_note: notes || null,
       };
 
       const orderItems: TablesInsert<"order_items">[] = items.map(item => ({
@@ -216,6 +217,7 @@ export function Checkout() {
         item_total: item.price * item.quantity,
         selected_variant: item.selectedVariant?.name ?? null,
         selected_extras: (item.selectedExtras || []).map(e => e.name),
+        note: item.note || null,
       }));
 
       const orderId = await addOrder(orderData, orderItems);

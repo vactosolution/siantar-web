@@ -385,9 +385,14 @@ export function DriverPanel() {
                                 <div className="flex items-start gap-2">
                                   <User className="w-4 h-4 mt-0.5 flex-shrink-0" />
                                   <div>
-                                    <div>{order.customer_name}</div>
-                                    <div className="text-xs">{order.customer_phone || "No phone"}</div>
-                                  </div>
+                                      <div>{order.customer_name}</div>
+                                      <div className="text-xs">{order.customer_phone}</div>
+                                      {order.customer_note && (
+                                        <div className="mt-1 text-[10px] bg-yellow-50 text-yellow-700 px-2 py-0.5 rounded border border-yellow-100">
+                                          Catatan: {order.customer_note}
+                                        </div>
+                                      )}
+                                    </div>
                                 </div>
                               </div>
                             </div>

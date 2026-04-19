@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
 import type { ProductVariant, ProductExtra, ProductWithDetails } from "../../contexts/DataContext";
 import { isOutletCurrentlyOpen, getNextOpenTime } from "../../utils/scheduleUtils";
+import { QuickAddButton } from "../../components/QuickAddButton";
 
 export function StoreDetail() {
   const { storeId } = useParams<{ storeId: string }>();
@@ -283,86 +284,16 @@ export function StoreDetail() {
                     ) : null}
                     Rp {calculateProductPrice(product).toLocaleString("id-ID")}
                   </p>
-
-                  {/* Variant Selection */}
-                  {product.variants && product.variants.length > 0 && (
-                    <div className="mt-2">
-                      <label className="text-sm text-gray-500">Varian:</label>
-                      <select
-                        className="ml-2 border border-gray-300 rounded px-2 py-1 text-sm"
-                        value={selectedVariants[product.id] || ""}
-                        onChange={(e) =>
-                          setSelectedVariants({
-                            ...selectedVariants,
-                            [product.id]: e.target.value,
-                          })
-                        }
-                      >
-                        <option value="">Pilih Varian</option>
-                        {product.variants.map((variant) => (
-                          <option key={variant.id} value={variant.id}>
-                            {variant.name} (+Rp {variant.price_adjustment.toLocaleString("id-ID")})
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
-
-                  {/* Extra Selection */}
-                  {product.extras && product.extras.length > 0 && (
-                    <div className="mt-2">
-                      <label className="text-sm text-gray-500">Tambahan:</label>
-                      <div className="flex flex-wrap mt-1">
-                        {product.extras.map((extra) => (
-                          <label key={extra.id} className="mr-2">
-                            <input
-                              type="checkbox"
-                              className="mr-1"
-                              checked={selectedExtras[product.id]?.includes(extra.id) || false}
-                              onChange={(e) => {
-                                const currentExtras = selectedExtras[product.id] || [];
-                                if (e.target.checked) {
-                                  setSelectedExtras({
-                                    ...selectedExtras,
-                                    [product.id]: [...currentExtras, extra.id],
-                                  });
-                                } else {
-                                  setSelectedExtras({
-                                    ...selectedExtras,
-                                    [product.id]: currentExtras.filter((id) => id !== extra.id),
-                                  });
-                                }
-                              }}
-                            />
-                            {extra.name} (+Rp {extra.price.toLocaleString("id-ID")})
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
 
                 <div className="flex flex-col items-center gap-1 flex-shrink-0">
-                  <button
-                    onClick={() => handleAddToCart(product)}
-                    disabled={!product.is_available || !isOpen}
-                    className="flex items-center justify-center w-10 h-10 bg-orange-500 text-white rounded-lg hover:bg-orange-600 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed relative"
-                  >
-                    {!isOpen ? <DoorClosed className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
-                    {isOpen && getProductCartQuantity(product) > 0 && (
-                      <span className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
-                        {getProductCartQuantity(product)}
-                      </span>
-                    )}
-                  </button>
-                  {isOpen && getProductCartQuantity(product) > 0 && (
-                    <span className="text-xs text-orange-600 font-medium">
-                      {getProductCartQuantity(product)}x
-                    </span>
-                  )}
-                  {!isOpen && (
-                    <span className="text-[10px] text-red-500 font-bold uppercase mt-1">Tutup</span>
-                  )}
+                  <QuickAddButton
+                    product={product}
+                    outletId={storeId!}
+                    outletName={outlet!.name}
+                    isOpen={isOpen}
+                    quantity={getProductCartQuantity(product)}
+                  />
                 </div>
               </div>
             ))}

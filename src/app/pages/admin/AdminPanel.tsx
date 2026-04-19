@@ -866,6 +866,11 @@ export function AdminPanel() {
                                 <div className="text-xs leading-relaxed mt-1 text-gray-700 bg-gray-100 p-2 rounded-lg border border-gray-200">
                                   {order.address}
                                 </div>
+                                {order.customer_note && (
+                                  <div className="mt-2 text-xs leading-relaxed text-orange-700 bg-orange-50 p-2 rounded-lg border border-orange-100">
+                                    <span className="font-bold">Catatan:</span> {order.customer_note}
+                                  </div>
+                                )}
                                 {order.customer_latitude && (
                                   <div className="mt-2 flex items-center gap-2">
                                     <span className="text-[10px] font-mono bg-gray-100 px-2 py-1 rounded border border-gray-200">
@@ -1166,11 +1171,17 @@ export function AdminPanel() {
                             </div>
                           )}
                           {order.status === "driver_assigned" && (
-                            <div className="mt-3">
+                            <div className="mt-3 space-y-2">
                               <div className="w-full px-4 py-2 bg-gray-300 text-gray-500 rounded-lg text-sm text-center font-medium cursor-not-allowed">
                                 <CheckCircle2 className="w-4 h-4 inline mr-1" />
                                 Driver Ditugaskan
                               </div>
+                              <button
+                                onClick={() => setShowRejectOrderConfirm(order.id)}
+                                className="w-full px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg text-xs font-bold transition-all border border-red-100"
+                              >
+                                Tolak Pesanan
+                              </button>
                             </div>
                           )}
                           <div className="mt-3">

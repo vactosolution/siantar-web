@@ -12,7 +12,7 @@ export function PaymentInstruction() {
   const { orderId } = useParams<{ orderId: string }>();
 
   const navigate = useNavigate();
-  const { orders, updateOrderPayment, paymentAccounts } = useData();
+  const { orders, updateOrder, paymentAccounts } = useData();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const order = orders.find((o) => o.id === orderId);
@@ -88,9 +88,10 @@ export function PaymentInstruction() {
       const path = `${order.id}/${Date.now()}-${selectedFile.name}`;
       const url = await uploadFile("payment-proofs", path, selectedFile);
 
-      await updateOrderPayment(order.id, {
+      await updateOrder(order.id, {
         payment_proof_url: url,
         payment_status: "waiting_confirmation",
+        payment_rejection_reason: null,
       });
 
       setUploadedImage(url);
@@ -152,7 +153,7 @@ export function PaymentInstruction() {
         </div>
 
         {/* Payment Status - Show if already uploaded */}
-        {order.payment_status === "awaiting_admin_confirmation" && (
+        {order.status !== "cancelled" && order.payment_status === "awaiting_admin_confirmation" && (
           <div className="bg-orange-50 border-2 border-orange-200 rounded-2xl p-6 mb-6 shadow-sm">
             <div className="flex items-start gap-4">
               <div className="flex-shrink-0">
@@ -196,7 +197,7 @@ export function PaymentInstruction() {
         )}
 
         {/* Payment Rejected - Show rejection reason */}
-        {(order as any).payment_status === "rejected" && (order as any).payment_rejection_reason && (
+        {order.status !== "cancelled" && (order as any).payment_status === "rejected" && (order as any).payment_rejection_reason && (
           <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-6 mb-6 shadow-sm">
             <div className="flex items-start gap-4">
               <div className="flex-shrink-0">
@@ -220,8 +221,36 @@ export function PaymentInstruction() {
           </div>
         )}
 
+        {/* Order Cancelled / Rejected */}
+        {order.status === "cancelled" && (
+          <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-6 mb-6 shadow-sm">
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0">
+                <AlertCircle className="w-8 h-8 text-red-600" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-red-900 text-lg mb-1">
+                  Pesanan Dibatalkan
+                </h3>
+                <p className="text-red-700 text-sm mb-2">
+                  Mohon maaf, pesanan Anda tidak dapat dilanjutkan dengan alasan:
+                </p>
+                <div className="bg-white border border-red-200 rounded-lg p-3 mb-4">
+                  <p className="text-red-800 font-medium">{(order as any).payment_rejection_reason || "Driver tidak tersedia atau kedai sedang tutup/antre panjang."}</p>
+                </div>
+                <button
+                  onClick={() => navigate("/home")}
+                  className="w-full py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-colors"
+                >
+                  Kembali ke Beranda
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Main Payment Card */}
-        {order.payment_status !== "awaiting_admin_confirmation" && (
+        {order.status !== "cancelled" && order.payment_status !== "awaiting_admin_confirmation" && (
           <div className="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden mb-6">
             {/* Payment Method Header */}
             {providerInfo && (

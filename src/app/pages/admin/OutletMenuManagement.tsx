@@ -152,7 +152,7 @@ export function OutletMenuManagement() {
       }));
 
       if (editingMenu) {
-        await updateProduct(editingMenu.id, productData);
+        await updateProduct(editingMenu.id, productData, variantsData, extrasData);
         toast.success("Menu berhasil diperbarui!");
       } else {
         await addProduct(productData, variantsData, extrasData);

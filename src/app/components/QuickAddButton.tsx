@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Plus, X } from "lucide-react";
+import { useState, useEffect } from "react";
+import { DoorClosed, Plus, X } from "lucide-react";
 import { useCart } from "../contexts/CartContext";
 import { useData } from "../contexts/DataContext";
 import type { ProductWithDetails, ProductVariant, ProductExtra } from "../contexts/DataContext";
@@ -17,9 +17,11 @@ interface QuickAddButtonProps {
   product: ProductWithDetails;
   outletId: string;
   outletName: string;
+  isOpen?: boolean;
+  quantity?: number;
 }
 
-export function QuickAddButton({ product, outletId, outletName }: QuickAddButtonProps) {
+export function QuickAddButton({ product, outletId, outletName, isOpen = true, quantity = 0 }: QuickAddButtonProps) {
   const { addItem } = useCart();
   const { outlets } = useData();
   const [showDialog, setShowDialog] = useState(false);
@@ -29,6 +31,13 @@ export function QuickAddButton({ product, outletId, outletName }: QuickAddButton
   const outlet = outlets.find(o => o.id === outletId);
   const hasVariants = product.variants && product.variants.length > 0;
   const hasExtras = product.extras && product.extras.length > 0;
+
+  // Auto-select first variant
+  useEffect(() => {
+    if (hasVariants && product.variants && !selectedVariant) {
+      setSelectedVariant(product.variants[0].id);
+    }
+  }, [hasVariants, product.variants, selectedVariant]);
 
   const isMarkupEnabled = product.markup_enabled !== null 
     ? product.markup_enabled 
@@ -112,18 +121,31 @@ export function QuickAddButton({ product, outletId, outletName }: QuickAddButton
   };
 
   return (
-    <>
+    <div className="flex flex-col items-center gap-1">
       <button
         onClick={handleClick}
-        disabled={!product.is_available}
-        className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
-          product.is_available
+        disabled={!product.is_available || !isOpen}
+        className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors relative ${
+          product.is_available && isOpen
             ? "bg-orange-500 text-white hover:bg-orange-600"
             : "bg-gray-300 text-gray-500 cursor-not-allowed"
         }`}
       >
-        <Plus className="w-4 h-4" />
+        {!isOpen ? <DoorClosed className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
+        {isOpen && quantity > 0 && (
+          <span className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+            {quantity}
+          </span>
+        )}
       </button>
+      {isOpen && quantity > 0 && (
+        <span className="text-xs text-orange-600 font-medium">
+          {quantity}x
+        </span>
+      )}
+      {!isOpen && (
+        <span className="text-[10px] text-red-500 font-bold uppercase mt-1">Tutup</span>
+      )}
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="bg-white max-w-md">
@@ -224,13 +246,14 @@ export function QuickAddButton({ product, outletId, outletName }: QuickAddButton
             </Button>
             <Button
               onClick={handleAddWithOptions}
-              className="bg-orange-500 hover:bg-orange-600 text-white"
+              disabled={hasVariants && !selectedVariant}
+              className="bg-orange-500 hover:bg-orange-600 text-white disabled:bg-gray-300 disabled:cursor-not-allowed"
             >
               Tambahkan
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   );
 }

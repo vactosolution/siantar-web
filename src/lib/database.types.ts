@@ -65,30 +65,6 @@ export type Database = {
         }
         Relationships: []
       }
-      distance_matrix: {
-        Row: {
-          distance_km: number
-          fee: number
-          from_village: string
-          id: string
-          to_village: string
-        }
-        Insert: {
-          distance_km: number
-          fee?: number
-          from_village: string
-          id?: string
-          to_village: string
-        }
-        Update: {
-          distance_km?: number
-          fee?: number
-          from_village?: string
-          id?: string
-          to_village?: string
-        }
-        Relationships: []
-      }
       driver_financial_transactions: {
         Row: {
           amount: number
@@ -209,6 +185,7 @@ export type Database = {
           item_total: number
           markup_amount: number | null
           name: string
+          note: string | null
           order_id: string
           price: number
           product_id: string | null
@@ -222,6 +199,7 @@ export type Database = {
           item_total: number
           markup_amount?: number | null
           name: string
+          note?: string | null
           order_id: string
           price: number
           product_id?: string | null
@@ -235,6 +213,7 @@ export type Database = {
           item_total?: number
           markup_amount?: number | null
           name?: string
+          note?: string | null
           order_id?: string
           price?: number
           product_id?: string | null
@@ -368,6 +347,7 @@ export type Database = {
           customer_latitude: number | null
           customer_longitude: number | null
           customer_name: string
+          customer_note: string | null
           customer_phone: string
           customer_village: string
           delivery_data: Json | null
@@ -402,6 +382,7 @@ export type Database = {
           customer_latitude?: number | null
           customer_longitude?: number | null
           customer_name: string
+          customer_note?: string | null
           customer_phone: string
           customer_village: string
           delivery_data?: Json | null
@@ -436,6 +417,7 @@ export type Database = {
           customer_latitude?: number | null
           customer_longitude?: number | null
           customer_name?: string
+          customer_note?: string | null
           customer_phone?: string
           customer_village?: string
           delivery_data?: Json | null

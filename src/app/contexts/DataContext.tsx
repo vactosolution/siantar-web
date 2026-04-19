@@ -73,7 +73,12 @@ interface DataContextType {
 
   products: ProductWithDetails[];
   addProduct: (product: TablesInsert<"products">, variants: TablesInsert<"product_variants">[], extras: TablesInsert<"product_extras">[]) => Promise<void>;
-  updateProduct: (id: string, product: Partial<TablesInsert<"products">>) => Promise<void>;
+  updateProduct: (
+    id: string, 
+    product: Partial<TablesInsert<"products">>,
+    variants?: Omit<ProductVariant, "id" | "created_at">[],
+    extras?: Omit<ProductExtra, "id" | "created_at">[]
+  ) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
   getProductsByOutlet: (outletId: string) => ProductWithDetails[];
   refreshProducts: () => Promise<void>;
@@ -352,9 +357,33 @@ export function DataProvider({ children }: { children: ReactNode }) {
     await refreshProducts();
   }, [refreshProducts]);
 
-  const updateProduct = useCallback(async (id: string, product: Partial<TablesInsert<"products">>) => {
+  const updateProduct = useCallback(async (
+    id: string, 
+    product: Partial<TablesInsert<"products">>,
+    variants: Omit<ProductVariant, "id" | "created_at">[] = [],
+    extras: Omit<ProductExtra, "id" | "created_at">[] = []
+  ) => {
     const { error } = await supabase.from("products").update(product).eq("id", id);
     if (error) throw error;
+
+    // Sync variants: delete and re-insert
+    await supabase.from("product_variants").delete().eq("product_id", id);
+    if (variants.length > 0) {
+      const { error: vError } = await supabase
+        .from("product_variants")
+        .insert(variants.map(v => ({ ...v, product_id: id })));
+      if (vError) throw vError;
+    }
+
+    // Sync extras: delete and re-insert
+    await supabase.from("product_extras").delete().eq("product_id", id);
+    if (extras.length > 0) {
+      const { error: eError } = await supabase
+        .from("product_extras")
+        .insert(extras.map(e => ({ ...e, product_id: id })));
+      if (eError) throw eError;
+    }
+
     await refreshProducts();
   }, [refreshProducts]);
 
